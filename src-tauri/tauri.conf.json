@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "Orbit Companion",
+  "productName": "Orbit",
   "version": "0.1.0",
-  "identifier": "com.orbit.companion",
+  "identifier": "md.tekt.orbit",
   "build": {
     "beforeDevCommand": "pnpm dev",
     "devUrl": "http://127.0.0.1:1420",
@@ -10,14 +10,57 @@
     "frontendDist": "../dist"
   },
   "app": {
-    "windows": [{
-      "label": "main", "title": "Orbit Companion", "width": 510, "height": 820,
-      "decorations": false, "transparent": true, "alwaysOnTop": true,
-      "resizable": false, "shadow": false, "skipTaskbar": true
-    }],
+    "windows": [
+      {
+        "label": "main",
+        "title": "Orbit",
+        "width": 510,
+        "height": 820,
+        "decorations": false,
+        "transparent": true,
+        "alwaysOnTop": true,
+        "resizable": false,
+        "shadow": false,
+        "skipTaskbar": true
+      }
+    ],
     "security": {
       "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src ipc: http://ipc.localhost http://127.0.0.1:1420 ws://127.0.0.1:1420; object-src 'none'; base-uri 'self'"
-    }
+    },
+    "macOSPrivateApi": true
   },
-  "bundle": { "active": true, "targets": ["nsis"], "icon": ["icons/icon.ico"] }
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "category": "Productivity",
+    "publisher": "Tekt",
+    "shortDescription": "A small desktop robot for starting and finding your AI chats and projects.",
+    "longDescription": "Orbit is a local desktop companion that opens Claude, ChatGPT, Codex and Claude Code with your own subscriptions, keeps saved conversation links searchable, and reopens project folders. It never asks for API keys.",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "macOS": {
+      "minimumSystemVersion": "11.0"
+    },
+    "windows": {
+      "webviewInstallMode": {
+        "type": "downloadBootstrapper"
+      },
+      "nsis": {
+        "installMode": "currentUser"
+      }
+    },
+    "linux": {
+      "deb": {
+        "depends": []
+      },
+      "appimage": {
+        "bundleMediaFramework": false
+      }
+    }
+  }
 }
