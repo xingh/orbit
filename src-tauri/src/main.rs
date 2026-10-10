@@ -114,11 +114,39 @@ fn open_folder(folder: String) -> Result<(), String> {
 }
 
 #[tauri::command]
-async fn pick_folder() -> Result<Option<String>, String> {
-    Ok(rfd::AsyncFileDialog::new()
-        .pick_folder()
-        .await
-        .map(|handle| handle.path().to_string_lossy().into_owned()))
+async fn pick_folder(window: tauri::WebviewWindow) -> Result<Option<String>, String> {
+    let dialog = rfd::AsyncFileDialog::new().set_parent(&window);
+    let picked = above_companion(&window, dialog.pick_folder()).await;
+    Ok(picked.map(|handle| handle.path().to_string_lossy().into_owned()))
+}
+
+#[tauri::command]
+async fn export_backup(
+    window: tauri::WebviewWindow,
+    json: String,
+) -> Result<Option<String>, String> {
+    serde_json::from_str::<serde_json::Value>(&json)
+        .map_err(|_| "The backup is not valid JSON.".to_string())?;
+    let dialog = rfd::AsyncFileDialog::new()
+        .set_parent(&window)
+        .set_file_name("orbit-backup.json")
+        .add_filter("Orbit backup", &["json"]);
+    let Some(handle) = above_companion(&window, dialog.save_file()).await else {
+        return Ok(None);
+    };
+    std::fs::write(handle.path(), json).map_err(|e| e.to_string())?;
+    Ok(Some(handle.path().to_string_lossy().into_owned()))
+}
+
+/// The always-on-top companion would otherwise cover its own file dialogs on Windows.
+async fn above_companion<T>(
+    window: &tauri::WebviewWindow,
+    dialog: impl std::future::Future<Output = T>,
+) -> T {
+    let _ = window.set_always_on_top(false);
+    let result = dialog.await;
+    let _ = window.set_always_on_top(true);
+    result
 }
 
 #[tauri::command]
@@ -220,11 +248,25 @@ async fn launch_code(
 }
 
 fn reveal(app: &tauri::AppHandle) {
+    // Activating from a second launch or the Dock can turn the menu-bar companion into a regular app.
+    #[cfg(target_os = "macos")]
+    let _ = app.set_activation_policy(tauri::ActivationPolicy::Accessory);
     if let Some(window) = app.get_webview_window("main") {
         let _ = window.unminimize();
         let _ = window.show();
         let _ = window.set_focus();
         let _ = window.emit("open-launcher", ());
+    }
+}
+
+fn toggle(app: &tauri::AppHandle) {
+    match app.get_webview_window("main") {
+        Some(window)
+            if window.is_visible().unwrap_or(false) && !window.is_minimized().unwrap_or(false) =>
+        {
+            let _ = window.hide();
+        }
+        _ => reveal(app),
     }
 }
 
@@ -260,7 +302,7 @@ fn main() {
             tauri_plugin_global_shortcut::Builder::new()
                 .with_handler(|app, _, event| {
                     if event.state() == ShortcutState::Pressed {
-                        reveal(app);
+                        toggle(app);
                     }
                 })
                 .build(),
@@ -295,7 +337,13 @@ fn main() {
             app.manage(CapabilityState(Mutex::new(caps)));
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![capabilities, load_data, save_data, open_url, open_folder, pick_folder, client_status, launch_code])
-        .run(tauri::generate_context!())
-        .expect("Could not start Orbit");
+        .invoke_handler(tauri::generate_handler![capabilities, load_data, save_data, open_url, open_folder, pick_folder, export_backup, client_status, launch_code])
+        .build(tauri::generate_context!())
+        .expect("Could not start Orbit")
+        .run(|_app, _event| {
+            #[cfg(target_os = "macos")]
+            if let tauri::RunEvent::Reopen { .. } = _event {
+                reveal(_app);
+            }
+        });
 }

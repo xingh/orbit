@@ -449,7 +449,12 @@ mod tests {
     fn windows_plan_keeps_paths_literal() {
         let tools = tempfile::tempdir().unwrap();
         let cmd = tools.path().join("printcwd.cmd");
-        std::fs::write(&cmd, "@cd\r\n").unwrap();
+        // Written by PowerShell as UTF-8, because console output uses the legacy code page.
+        std::fs::write(
+            &cmd,
+            "@powershell -NoProfile -Command \"[IO.File]::WriteAllText($env:ORBIT_TEST_OUT, (Get-Location).ProviderPath)\"\r\n",
+        )
+        .unwrap();
         for name in hostile_names() {
             let root = tempfile::tempdir().unwrap();
             let dir = root.path().join(name);
@@ -461,11 +466,13 @@ mod tests {
                 path_env: std::env::var_os("PATH").unwrap(),
             };
             let plan = windows_plan(&job, false).unwrap();
+            let out_file = root.path().join("cwd.txt");
             let out = command(&plan)
                 .env("ANTHROPIC_API_KEY", "sk-test")
+                .env("ORBIT_TEST_OUT", &out_file)
                 .output()
                 .unwrap();
-            let text = String::from_utf8_lossy(&out.stdout);
+            let text = std::fs::read_to_string(&out_file).unwrap_or_default();
             let expected = dunce::canonicalize(&dir).unwrap();
             assert!(
                 text.trim().eq_ignore_ascii_case(expected.to_str().unwrap()) || text.contains(name),
