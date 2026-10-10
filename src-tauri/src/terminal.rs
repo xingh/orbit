@@ -347,7 +347,13 @@ mod tests {
             "-leading-dash",
         ];
         if !cfg!(windows) {
-            names.extend(["pipe |", "double\"quote", "new\nline", "glob*?[x]", "back\\slash"]);
+            names.extend([
+                "pipe |",
+                "double\"quote",
+                "new\nline",
+                "glob*?[x]",
+                "back\\slash",
+            ]);
         }
         names
     }
