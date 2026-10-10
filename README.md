@@ -84,7 +84,7 @@ The builds aren't code-signed yet, so your computer may warn you the first time:
 ### Everyday use
 
 - **Hover** the pill to see the labels, and **click** one to open its panel. Click it again, or click the robot, to tuck it away.
-- **Drag** the robot to move Orbit anywhere on screen.
+- **Drag** the robot, or any empty spot on the open panel, to move Orbit anywhere on screen. A quick click on the robot still opens and closes the panel.
 - **Ctrl + Shift + Space** (**Cmd + Shift + Space** on Mac) shows or hides Orbit from anywhere. It is also in the tray / menu bar.
 
 ## How Orbit protects your subscriptions
