@@ -341,13 +341,13 @@ mod tests {
             "semi;colon",
             "dollar $HOME $(whoami)",
             "back`tick`",
-            "amp & pipe |",
+            "amp & caret ^ %PATH%",
             "quote's",
             "Unicodé 日本 ø",
             "-leading-dash",
         ];
         if !cfg!(windows) {
-            names.extend(["double\"quote", "new\nline", "glob*?[x]", "back\\slash"]);
+            names.extend(["pipe |", "double\"quote", "new\nline", "glob*?[x]", "back\\slash"]);
         }
         names
     }
