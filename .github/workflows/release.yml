@@ -1,0 +1,118 @@
+name: Release
+
+# Push a tag such as v0.2.0 to build every installer and publish a GitHub Release people can download.
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    name: ${{ matrix.name }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Linux x64
+            os: ubuntu-22.04
+            args: --bundles deb,appimage
+          - name: Windows x64
+            os: windows-latest
+            args: --bundles nsis
+          - name: macOS Apple Silicon
+            os: macos-latest
+            target: aarch64-apple-darwin
+            args: --target aarch64-apple-darwin --bundles dmg
+          - name: macOS Intel
+            os: macos-latest
+            target: x86_64-apple-darwin
+            args: --target x86_64-apple-darwin --bundles dmg
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Linux build dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libgtk-3-dev libayatana-appindicator3-dev librsvg2-dev patchelf xdg-utils
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri -> target
+          key: ${{ matrix.target }}
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Use the tag as the app version
+        shell: bash
+        run: |
+          node -e '
+            const fs = require("fs");
+            const version = process.env.GITHUB_REF_NAME.replace(/^v/, "");
+            for (const file of ["src-tauri/tauri.conf.json", "package.json"]) {
+              const json = JSON.parse(fs.readFileSync(file, "utf8"));
+              json.version = version;
+              fs.writeFileSync(file, JSON.stringify(json, null, 2) + "\n");
+            }'
+
+      # macOS signing and notarization switch on automatically once these repository secrets exist.
+      - name: Enable macOS signing when configured
+        if: runner.os == 'macOS'
+        shell: bash
+        env:
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          if [ -n "$APPLE_CERTIFICATE" ]; then
+            for key in APPLE_CERTIFICATE APPLE_CERTIFICATE_PASSWORD APPLE_SIGNING_IDENTITY APPLE_ID APPLE_PASSWORD APPLE_TEAM_ID; do
+              echo "$key=${!key}" >> "$GITHUB_ENV"
+            done
+          else
+            echo "No Apple signing secrets; building an unsigned app."
+          fi
+
+      - uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tagName: ${{ github.ref_name }}
+          releaseName: Orbit ${{ github.ref_name }}
+          releaseBody: |
+            ## Download Orbit
+
+            | Your computer | Download |
+            | --- | --- |
+            | Windows 10 or 11 | `Orbit_*_x64-setup.exe` |
+            | Mac with Apple chip (M1 or newer) | `Orbit_*_aarch64.dmg` |
+            | Mac with Intel chip | `Orbit_*_x64.dmg` |
+            | Linux (any distro) | `Orbit_*_amd64.AppImage` |
+            | Ubuntu / Debian | `Orbit_*_amd64.deb` |
+
+            Not sure which Mac you have? Apple menu → **About This Mac** → look for "Chip: Apple" or "Processor: Intel".
+
+            ### First launch
+            - **Windows:** if "Windows protected your PC" appears, click **More info** → **Run anyway**.
+            - **Mac:** open the .dmg, drag Orbit to Applications. If macOS says it can't be opened, open **System Settings → Privacy & Security** and click **Open Anyway** next to Orbit.
+            - **Linux AppImage:** right-click the file → Properties → allow running as a program, then double-click it.
+
+            Orbit uses your own Claude / ChatGPT sign-ins in your browser and never asks for API keys.
+          releaseDraft: false
+          prerelease: false
+          args: ${{ matrix.args }}

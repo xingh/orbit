@@ -1,4 +1,47 @@
-# Orbit Companion — early build 01
+# Orbit
+
+A small robot that floats on your desktop. Under it is a pill with three buttons:
+
+- **New chat**: open Claude, ChatGPT, Codex or Claude Code with your own signed-in account.
+- **Find**: search the conversation links you saved.
+- **Projects**: keep a project's folder and related chats together, and open its coding tool.
+
+Hover over the pill to see the labels, and click one to open its panel. Orbit works on Windows, macOS and Linux and never asks for API keys.
+
+## Download
+
+Get the latest installer from the [Releases page](https://github.com/xingh/orbit/releases/latest):
+
+| Your computer | File to download |
+| --- | --- |
+| Windows 10 or 11 | `Orbit_…_x64-setup.exe` |
+| Mac with Apple chip (M1 or newer) | `Orbit_…_aarch64.dmg` |
+| Mac with Intel chip | `Orbit_…_x64.dmg` |
+| Linux (any distro) | `Orbit_…_amd64.AppImage` |
+| Ubuntu / Debian | `Orbit_…_amd64.deb` |
+
+**First launch.** Until the builds are code-signed, your computer may warn you once:
+
+- **Windows:** "Windows protected your PC" → **More info** → **Run anyway**.
+- **Mac:** drag Orbit into Applications and open it. If macOS blocks it, go to **System Settings → Privacy & Security** and click **Open Anyway**.
+- **Linux AppImage:** right-click → Properties → allow running as a program.
+
+Bring Orbit back with **Ctrl + Shift + Space** (**Cmd + Shift + Space** on Mac), or from its tray / menu-bar icon.
+
+## For maintainers: publishing a release
+
+```sh
+git tag v0.2.0
+git push origin v0.2.0
+```
+
+The `Release` workflow builds Windows, macOS (Apple Silicon and Intel) and Linux installers and publishes them on the GitHub Release for that tag. The version number comes from the tag. Each pull request also builds unsigned installers as CI artifacts.
+
+macOS signing and notarization switch on automatically once the repository has the `APPLE_CERTIFICATE`, `APPLE_CERTIFICATE_PASSWORD`, `APPLE_SIGNING_IDENTITY`, `APPLE_ID`, `APPLE_PASSWORD` and `APPLE_TEAM_ID` secrets. Windows signing still needs a code-signing certificate.
+
+---
+
+## Development notes (early build 01)
 
 A miniature 3D desktop robot with New chat, Find, and Projects. React + TypeScript + Three.js, with a Tauri 2 Windows shell and local SQLite storage.
 

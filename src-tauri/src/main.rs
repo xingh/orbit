@@ -1,113 +1,301 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-use std::{path::PathBuf, sync::Mutex};
+mod clients;
+mod paths;
+mod providers;
+mod terminal;
+
 use rusqlite::{Connection, OptionalExtension};
+use serde::Serialize;
+use std::sync::Mutex;
 use tauri::{Emitter, Manager, State};
 use tauri_plugin_global_shortcut::{Code, GlobalShortcutExt, Modifiers, Shortcut, ShortcutState};
 
 struct Database(Mutex<Connection>);
 
+#[derive(Serialize, Clone, Default)]
+struct Capabilities {
+    os: &'static str,
+    arch: &'static str,
+    /// Linux: `x11`, `wayland` or `unknown`; other platforms: `native`.
+    session: String,
+    desktop: String,
+    tray: bool,
+    shortcut: bool,
+    shortcut_label: &'static str,
+    /// Whether the compositor is expected to honour always-on-top for this window.
+    always_on_top: bool,
+    terminals: Vec<terminal::TerminalInfo>,
+    default_terminal: Option<&'static str>,
+}
+
+struct CapabilityState(Mutex<Capabilities>);
+
+const SHORTCUT_LABEL: &str = if cfg!(target_os = "macos") {
+    "Cmd + Shift + Space"
+} else {
+    "Ctrl + Shift + Space"
+};
+
+fn linux_session() -> String {
+    let kind = std::env::var("XDG_SESSION_TYPE")
+        .unwrap_or_default()
+        .to_lowercase();
+    if kind == "wayland" || std::env::var_os("WAYLAND_DISPLAY").is_some() {
+        "wayland".into()
+    } else if kind == "x11" || std::env::var_os("DISPLAY").is_some() {
+        "x11".into()
+    } else {
+        "unknown".into()
+    }
+}
+
+fn base_capabilities() -> Capabilities {
+    let session = if cfg!(target_os = "linux") {
+        linux_session()
+    } else {
+        "native".into()
+    };
+    Capabilities {
+        os: std::env::consts::OS,
+        arch: std::env::consts::ARCH,
+        always_on_top: session != "wayland",
+        session,
+        desktop: std::env::var("XDG_CURRENT_DESKTOP").unwrap_or_default(),
+        shortcut_label: SHORTCUT_LABEL,
+        terminals: terminal::detect(),
+        default_terminal: terminal::default_terminal().map(|t| t.id()),
+        ..Default::default()
+    }
+}
+
+#[tauri::command]
+fn capabilities(state: State<CapabilityState>) -> Result<Capabilities, String> {
+    state.0.lock().map(|c| c.clone()).map_err(|e| e.to_string())
+}
+
 #[tauri::command]
 fn load_data(db: State<Database>) -> Result<String, String> {
-    db.0.lock().map_err(|e| e.to_string())?
-        .query_row("SELECT json FROM workspace WHERE id = 1", [], |row| row.get(0))
-        .optional().map(|value: Option<String>| value.unwrap_or_default()).map_err(|e| e.to_string())
+    db.0.lock()
+        .map_err(|e| e.to_string())?
+        .query_row("SELECT json FROM workspace WHERE id = 1", [], |row| {
+            row.get(0)
+        })
+        .optional()
+        .map(|value: Option<String>| value.unwrap_or_default())
+        .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
 fn save_data(json: String, db: State<Database>) -> Result<(), String> {
-    if json.len() > 2_000_000 { return Err("Workspace exceeds the 2 MB limit. Export and archive older entries.".into()); }
+    if json.len() > 2_000_000 {
+        return Err("Workspace exceeds the 2 MB limit. Export and archive older entries.".into());
+    }
     let value: serde_json::Value = serde_json::from_str(&json).map_err(|e| e.to_string())?;
-    if !value["items"].is_array() { return Err("Invalid workspace data".into()); }
-    db.0.lock().map_err(|e| e.to_string())?
+    if !value["items"].is_array() {
+        return Err("Invalid workspace data".into());
+    }
+    db.0.lock()
+        .map_err(|e| e.to_string())?
         .execute("INSERT INTO workspace (id, json) VALUES (1, ?1) ON CONFLICT(id) DO UPDATE SET json = excluded.json", [json])
-        .map(|_| ()).map_err(|e| e.to_string())
+        .map(|_| ())
+        .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
 fn open_url(url: String) -> Result<(), String> {
-    let parsed = url::Url::parse(&url).map_err(|_| "Invalid URL")?;
-    let host = parsed.host_str().unwrap_or_default();
-    if parsed.scheme() != "https" || !parsed.username().is_empty() || parsed.password().is_some() || parsed.port().is_some()
-        || !["claude.ai", "chatgpt.com", "grok.com"].contains(&host) {
-        return Err("Only official HTTPS service links can be opened.".into());
-    }
-    open::that(parsed.as_str()).map_err(|e| e.to_string())
-}
-
-fn folder_path(folder: &str) -> Result<PathBuf, String> {
-    let path = PathBuf::from(folder);
-    if !path.is_absolute() || !path.is_dir() { return Err("Choose an existing absolute project folder.".into()); }
-    path.canonicalize().map_err(|e| e.to_string())
+    let parsed = providers::validate_official_url(&url)?;
+    open::that_detached(parsed.as_str()).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
-fn open_folder(folder: String) -> Result<(), String> { open::that(folder_path(&folder)?).map_err(|e| e.to_string()) }
+fn open_folder(folder: String) -> Result<(), String> {
+    open::that_detached(paths::project_folder(&folder)?).map_err(|e| e.to_string())
+}
 
 #[tauri::command]
 async fn pick_folder() -> Result<Option<String>, String> {
-    Ok(rfd::AsyncFileDialog::new().pick_folder().await.map(|handle| handle.path().to_string_lossy().into_owned()))
+    Ok(rfd::AsyncFileDialog::new()
+        .pick_folder()
+        .await
+        .map(|handle| handle.path().to_string_lossy().into_owned()))
 }
 
 #[tauri::command]
-fn launch_code(provider: String, folder: String) -> Result<(), String> {
-    let tool = match provider.as_str() { "codex" => "codex", "claude-code" => "claude", _ => return Err("Unknown coding tool.".into()) };
-    #[cfg(windows)]
-    {
-        use std::os::windows::process::CommandExt;
-        // Check installation without running the user's tool or passing a user-built command.
-        let exists = std::process::Command::new("where.exe").arg(tool).creation_flags(0x08000000)
-            .output().map_err(|e| e.to_string())?;
-        if !exists.status.success() { return Err(format!("{} is not installed or is not on PATH. Install its official client first.", tool)); }
-        let mut command = std::process::Command::new("powershell.exe");
-        // Folder comes from an environment variable, never executable shell text.
-        command.args(["-NoLogo", "-NoProfile", "-NoExit", "-Command",
-            "if ($env:ORBIT_PROJECT_DIR) { Set-Location -LiteralPath $env:ORBIT_PROJECT_DIR }; Write-Host 'Use your subscription sign-in in this tool.'; & $env:ORBIT_CODE_TOOL"]);
-        command.env("ORBIT_CODE_TOOL", tool).env_remove("ORBIT_PROJECT_DIR");
-        if !folder.trim().is_empty() { command.env("ORBIT_PROJECT_DIR", folder_path(&folder)?); }
-        for key in ["ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN", "ANTHROPIC_BASE_URL", "CLAUDE_CODE_USE_BEDROCK", "CLAUDE_CODE_USE_VERTEX", "CLAUDE_CODE_USE_FOUNDRY", "OPENAI_API_KEY", "OPENAI_BASE_URL"] { command.env_remove(key); }
-        command.creation_flags(0x00000010).spawn().map(|_| ()).map_err(|e| e.to_string())
+async fn client_status(provider: String) -> Result<clients::ClientReport, String> {
+    let client = clients::Client::from_provider(&provider).ok_or("Unknown coding tool.")?;
+    tauri::async_runtime::spawn_blocking(move || clients::report(client, &provider).0)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[derive(Serialize)]
+struct LaunchResult {
+    /// `launched` or `needs_setup`. `needs_setup` never starts the client.
+    status: &'static str,
+    message: String,
+    client: clients::ClientReport,
+}
+
+fn needs_setup(client: clients::ClientReport, message: String) -> LaunchResult {
+    LaunchResult {
+        status: "needs_setup",
+        message,
+        client,
     }
-    #[cfg(not(windows))]
-    { let _ = (tool, folder); Err("Local terminal launch is currently supported on Windows.".into()) }
+}
+
+fn launch_blocking(
+    app: tauri::AppHandle,
+    provider: String,
+    folder: String,
+) -> Result<LaunchResult, String> {
+    let client = clients::Client::from_provider(&provider).ok_or("Unknown coding tool.")?;
+    let dir = if folder.trim().is_empty() {
+        paths::home_dir().ok_or("Could not find your home folder.")?
+    } else {
+        paths::project_folder(&folder)?
+    };
+    let (report, tool) = clients::report(client, &provider);
+    let name = client.name();
+    let Some(tool) = tool else {
+        return Ok(needs_setup(report, format!("{name} is not installed. Install the official client, sign in with your subscription, then try again. The web version is available now.")));
+    };
+    match &report.auth {
+        clients::AuthState::Subscription { .. } => {}
+        clients::AuthState::ApiBilling { .. } => {
+            return Ok(needs_setup(report, format!("{name} is signed in with an API key or another billed provider. Orbit only launches it on a subscription sign-in. Sign out and sign in with your subscription, or use the web version.")))
+        }
+        clients::AuthState::SignedOut => {
+            return Ok(needs_setup(report, format!("{name} is installed but not signed in. Sign in with your subscription in the tool, then try again.")))
+        }
+        clients::AuthState::Unknown { .. } => {
+            return Ok(needs_setup(report, format!("Orbit could not confirm that {name} uses your subscription, so it did not start it. Check its sign-in status, or use the web version.")))
+        }
+    }
+    let job = terminal::Job {
+        tool: &tool,
+        args: &[],
+        dir: &dir,
+        path_env: clients::child_path(&tool),
+    };
+    let plan = if cfg!(target_os = "macos") {
+        let script_dir = app
+            .path()
+            .app_cache_dir()
+            .map_err(|e| e.to_string())?
+            .join("launchers");
+        let nonce = format!(
+            "{:x}{:x}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map(|d| d.as_nanos())
+                .unwrap_or(0)
+        );
+        terminal::mac_plan(terminal::Terminal::TerminalApp, &job, &script_dir, &nonce)?
+    } else if cfg!(windows) {
+        terminal::windows_plan(&job, true)?
+    } else {
+        let term = terminal::default_terminal().ok_or("No supported terminal was found. Install GNOME Terminal, Konsole, xfce4-terminal, kitty, Alacritty, WezTerm or xterm.")?;
+        terminal::linux_plan(term, &job)?
+    };
+    terminal::spawn(&plan)?;
+    Ok(LaunchResult {
+        status: "launched",
+        message: format!("{name} opened in a terminal using your subscription sign-in."),
+        client: report,
+    })
+}
+
+#[tauri::command]
+async fn launch_code(
+    app: tauri::AppHandle,
+    provider: String,
+    folder: String,
+) -> Result<LaunchResult, String> {
+    tauri::async_runtime::spawn_blocking(move || launch_blocking(app, provider, folder))
+        .await
+        .map_err(|e| e.to_string())?
 }
 
 fn reveal(app: &tauri::AppHandle) {
     if let Some(window) = app.get_webview_window("main") {
-        let _ = window.show(); let _ = window.set_focus(); let _ = window.emit("open-launcher", ());
+        let _ = window.unminimize();
+        let _ = window.show();
+        let _ = window.set_focus();
+        let _ = window.emit("open-launcher", ());
     }
+}
+
+fn build_tray(app: &tauri::App) -> tauri::Result<()> {
+    let show = tauri::menu::MenuItem::with_id(app, "show", "Open Orbit", true, None::<&str>)?;
+    let hide = tauri::menu::MenuItem::with_id(app, "hide", "Hide Orbit", true, None::<&str>)?;
+    let quit = tauri::menu::MenuItem::with_id(app, "quit", "Quit Orbit", true, None::<&str>)?;
+    let menu = tauri::menu::Menu::with_items(app, &[&show, &hide, &quit])?;
+    let mut tray = tauri::tray::TrayIconBuilder::with_id("orbit")
+        .tooltip("Orbit")
+        .menu(&menu)
+        .on_menu_event(|app, event| match event.id.as_ref() {
+            "show" => reveal(app),
+            "hide" => {
+                if let Some(window) = app.get_webview_window("main") {
+                    let _ = window.hide();
+                }
+            }
+            "quit" => app.exit(0),
+            _ => {}
+        });
+    if let Some(icon) = app.default_window_icon() {
+        tray = tray.icon(icon.clone());
+    }
+    tray.build(app).map(|_| ())
 }
 
 fn main() {
     tauri::Builder::default()
-        .plugin(tauri_plugin_global_shortcut::Builder::new().with_handler(|app, _, event| {
-            if event.state() == ShortcutState::Pressed { reveal(app); }
-        }).build())
+        // Must be registered first: a second launch focuses the running companion instead of starting another.
+        .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| reveal(app)))
+        .plugin(
+            tauri_plugin_global_shortcut::Builder::new()
+                .with_handler(|app, _, event| {
+                    if event.state() == ShortcutState::Pressed {
+                        reveal(app);
+                    }
+                })
+                .build(),
+        )
         .setup(|app| {
+            #[cfg(target_os = "macos")]
+            app.set_activation_policy(tauri::ActivationPolicy::Accessory);
+
             let data_path = app.path().app_data_dir()?;
             std::fs::create_dir_all(&data_path)?;
             let db = Connection::open(data_path.join("orbit.sqlite"))?;
             db.execute_batch("PRAGMA journal_mode=WAL; CREATE TABLE IF NOT EXISTS workspace (id INTEGER PRIMARY KEY, json TEXT NOT NULL);")?;
             app.manage(Database(Mutex::new(db)));
-            let shortcut = Shortcut::new(Some(Modifiers::CONTROL | Modifiers::SHIFT), Code::Space);
-            // A shortcut collision should not prevent the companion from opening.
-            if let Err(error) = app.global_shortcut().register(shortcut) { eprintln!("Shortcut unavailable: {}", error); }
-            let show = tauri::menu::MenuItem::with_id(app, "show", "Open Orbit", true, None::<&str>)?;
-            let hide = tauri::menu::MenuItem::with_id(app, "hide", "Hide Orbit", true, None::<&str>)?;
-            let quit = tauri::menu::MenuItem::with_id(app, "quit", "Quit Orbit", true, None::<&str>)?;
-            let menu = tauri::menu::Menu::with_items(app, &[&show, &hide, &quit])?;
-            let mut tray = tauri::tray::TrayIconBuilder::new().tooltip("Orbit Companion").menu(&menu)
-                .on_menu_event(|app, event| match event.id.as_ref() {
-                    "show" => reveal(app),
-                    "hide" => { if let Some(window) = app.get_webview_window("main") { let _ = window.hide(); } },
-                    "quit" => app.exit(0),
-                    _ => {}
-                });
-            if let Some(icon) = app.default_window_icon() { tray = tray.icon(icon.clone()); }
-            tray.build(app)?;
+
+            let mut caps = base_capabilities();
+            let modifier = if cfg!(target_os = "macos") { Modifiers::SUPER } else { Modifiers::CONTROL };
+            // A shortcut collision or an unsupported compositor must not prevent the companion from opening.
+            match app.global_shortcut().register(Shortcut::new(Some(modifier | Modifiers::SHIFT), Code::Space)) {
+                Ok(()) => caps.shortcut = true,
+                Err(error) => eprintln!("Global shortcut unavailable: {error}"),
+            }
+            match build_tray(app) {
+                Ok(()) => caps.tray = true,
+                Err(error) => eprintln!("Tray unavailable: {error}"),
+            }
+            if let Some(window) = app.get_webview_window("main") {
+                // Without a tray or shortcut the taskbar/dock entry is the only reliable way back to a hidden window.
+                if !(caps.tray && caps.shortcut) {
+                    let _ = window.set_skip_taskbar(false);
+                }
+            }
+            app.manage(CapabilityState(Mutex::new(caps)));
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![load_data, save_data, open_url, open_folder, pick_folder, launch_code])
+        .invoke_handler(tauri::generate_handler![capabilities, load_data, save_data, open_url, open_folder, pick_folder, client_status, launch_code])
         .run(tauri::generate_context!())
-        .expect("Could not start Orbit Companion");
+        .expect("Could not start Orbit");
 }
