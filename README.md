@@ -15,7 +15,7 @@ Claude · ChatGPT · Codex · Claude Code, with your own subscriptions. No API k
 ![Linux](https://img.shields.io/badge/Linux-AppImage%20%7C%20deb-FCC624?logo=linux&logoColor=black)
 ![Built with Tauri](https://img.shields.io/badge/built%20with-Tauri%202-24C8DB?logo=tauri&logoColor=white)
 
-<img src="docs/screenshots/demo.gif" width="360" alt="Orbit: hover the pill, open New chat, Find and Projects" />
+<img src="docs/screenshots/demo.gif" width="360" alt="Orbit: resting, finding and filtering 1081 saved chats, a project and its chats, and the robot turned off" />
 
 **[⬇ Download Orbit](https://github.com/xingh/orbit/releases/latest)**
 
@@ -38,22 +38,23 @@ Your AI conversations are scattered across browser tabs, apps and terminals. Orb
 
 ## See it
 
-<table>
-  <tr>
-    <td align="center" width="50%"><img src="docs/screenshots/rest.png" alt="Resting: robot with icon pill" /><br/><b>Resting</b>: just the robot and a small pill</td>
-    <td align="center" width="50%"><img src="docs/screenshots/hover.png" alt="Hover: pill shows labels" /><br/><b>Hover</b>: the pill shows its labels</td>
-  </tr>
-</table>
-
-<p align="center"><img src="docs/screenshots/hero.png" alt="New chat, Find and a project space" /></p>
+The desktop widget at its real size — 330&nbsp;×&nbsp;529&nbsp;points, a fifth of a 13-inch screen —
+holding 1081 saved chats and projects.
 
 <table>
   <tr>
-    <td align="center"><b>New chat</b><br/>Pick a tool and continue with your own sign-in.</td>
-    <td align="center"><b>Find</b><br/>Search saved chats and projects, filter by tool.</td>
-    <td align="center"><b>Project space</b><br/>Folder, coding tool and related chats together.</td>
+    <td align="center" width="25%"><img src="docs/screenshots/resting.png" alt="Resting: the robot and a small pill" /><br/><b>Resting</b><br/>the robot and its pill</td>
+    <td align="center" width="25%"><img src="docs/screenshots/find.png" alt="Find: searching and filtering saved chats" /><br/><b>Find</b><br/>search, filter by tool</td>
+    <td align="center" width="25%"><img src="docs/screenshots/project.png" alt="A project and the chats filed under it" /><br/><b>Project</b><br/>the chats filed under it</td>
+    <td align="center" width="25%"><img src="docs/screenshots/flat-resting.png" alt="The robot turned off, leaving a flat mark" /><br/><b>Robot off</b><br/>a flat mark, no renderer</td>
   </tr>
 </table>
+
+<sub>These are captured from the real build, not mocked up:
+<code>docs/screenshots/capture/capture.py</code> runs it in Firefox on a virtual display with Tauri's
+bridge stubbed, and drives it through Marionette. The workspace in the pictures is synthetic — it
+has the same shape as a real one (1081 entries, the same split between tools) and none of its
+content, because what Orbit stores is the titles of someone's conversations.</sub>
 
 ## Download
 

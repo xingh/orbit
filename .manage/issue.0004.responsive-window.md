@@ -1,10 +1,11 @@
 ---
 issue: 4
-title: On low-resolution screens the robot is too big and the panel takes too much of the screen
+title: Linux / * - in low res screens the bot is too bit ,and the panel takes up too much screen space
 state: in-progress
 opened: 2026-10-20
 closed:
 github: https://github.com/xingh/orbit/issues/4
+owner: github
 arkitype: [04]
 prerequisites: []
 ---

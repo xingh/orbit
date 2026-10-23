@@ -5,6 +5,7 @@ state: open
 opened: 2026-10-23
 closed:
 github: https://github.com/xingh/orbit/issues/9
+owner: file
 arkitype: [02, 03, 04]
 prerequisites: [issue.0006.per-item-storage.md]
 ---

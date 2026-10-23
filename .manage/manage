@@ -145,6 +145,41 @@ cmd_clean() {
   $dry && info "dry run: nothing was removed" || ok "cleaned ${n} item(s)"
 }
 
+cmd_sync() {
+  command -v gh >/dev/null 2>&1 || { err "gh is not installed"; return 1; }
+  local -a files
+  if [[ -n "${1:-}" ]]; then
+    local one; one=$(locate "$1") || true
+    [[ -z "$one" ]] && { err "no management file matches '${1}'"; return 1; }
+    files=("$one")
+  else
+    shopt -s nullglob; files=("$MANAGE"/issue.[0-9]*.md); shopt -u nullglob
+  fi
+  for file in "${files[@]}"; do
+    local number title
+    number=$(field "$file" issue)
+    title=$(field "$file" title)
+    [[ "$number" =~ ^[0-9]+$ ]] || { info "skipping $(basename "$file") — no issue number"; continue; }
+    local owner; owner=$(field "$file" owner)
+    if [[ "$owner" != "file" ]]; then
+      info "skipping #${number} — owner is '${owner:-unset}', not 'file'; its author's words stay theirs"
+      continue
+    fi
+    # The file is the source of truth; the issue carries a copy so it reads on its own.
+    local body; body=$(mktemp)
+    { sed '1{/^---$/!q}; 1,/^---$/d' "$file"
+      printf '\n---\n\nKept in the repository at `%s`, which is the source of truth — edit it there and run `./manage sync %s`.\n' \
+        ".manage/$(basename "$file")" "$number"
+    } > "$body"
+    if gh issue edit "$number" -t "$title" -F "$body" >/dev/null 2>&1; then
+      ok "synced #${number} $(basename "$file")"
+    else
+      err "could not sync #${number}"
+    fi
+    rm -f "$body"
+  done
+}
+
 cmd_status() {
   head_ "Orbit"
   info "branch:  $(git -C "$ROOT" branch --show-current 2>/dev/null || echo 'not a git repo')"
@@ -178,6 +213,7 @@ Orbit management utility
   manage status                  repository health and what is open in .manage
   manage new <n|draft> <slug>    start an issue file from the template
   manage done <n|slug>           stamp it done and move it to .archive/
+  manage sync [n]                copy the file's content into its GitHub issue
   manage archive [message]       snapshot .manage (except ROADMAP/README) into .archive/
   manage clean [--dry-run|--all] remove temporary files and build output
   manage help | version
@@ -191,6 +227,7 @@ main() {
   case "$cmd" in
     new)     cmd_new "$@" ;;
     done)    cmd_done "$@" ;;
+    sync)    cmd_sync "$@" ;;
     archive) cmd_archive "$@" ;;
     clean)   cmd_clean "$@" ;;
     status)  cmd_status ;;
