@@ -19,6 +19,8 @@ Never archived. Sequence and dependencies; the detail is in the issue file each 
 
 ## Next, in dependency order
 
+Focus: ChatGPT and Claude. Other providers wait in the backlog below.
+
 The first two unlock almost everything else, and both pay for themselves single-user. That is the
 test of whether planning for later is honest.
 
@@ -44,13 +46,20 @@ Independent of all the above, and small:
 - [ ] `issue.0013.claude-projects-count.md` — settle 21 of 34 from one import report
 - [ ] `issue.0005.code-tools-in-launcher.md` — Claude Code and Codex back in the launcher
 
+## Backlog — potential providers
+
+Not scheduled. Each is a launch half that is small and an import half blocked on an endpoint nobody
+has observed yet.
+
+- [ ] `issue.0019.perplexity-provider.md` — Perplexity in New chat; import only once a list endpoint is known
+- [ ] `issue.0020.grok-import.md` — Grok already opens; import and extension saves need a list endpoint
+
 ## Longer-lived
 
 - [ ] `issue.0017.robot-genome.md` — the robot as a declarative, mutable genome
 - [ ] Database upgrades and versioned backups — a prerequisite for the storage migration
 - [ ] Edit saved chats and re-link moved project folders
 - [ ] Signed installers, so there is no first-launch warning
-- [ ] Optional Grok integration beyond opening the website (no list endpoint is known)
 
 ## Not planned, deliberately
 
