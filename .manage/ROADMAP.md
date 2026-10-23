@@ -12,17 +12,49 @@ Never archived. Sequence and dependencies; the detail is in the issue file each 
 - [x] Chats filed under the projects they belong to, and a re-import that repairs entries already
       saved — `2026.10.23.import-links-and-responsiveness.plan.md`
 
-## In the working tree, uncommitted
+## In progress
 
-- [ ] `issue.0004.responsive-window.md` — 20% footprint, compact layout, dense list
-- [ ] 3D robot optional and lazily loaded — same session plan
+- [ ] `issue.0004.responsive-window.md` — shipped: 20% footprint, compact layout, dense list, lazy
+      optional 3D robot. Left: the pill only on hover, double-click to the tray, tray double-click
+      to open, and a panel that opens where there is room
 
-## Next, in dependency order
+## Next
 
-Focus: ChatGPT and Claude. Other providers wait in the backlog below.
+Focus: ChatGPT and Claude. Two tiers: first what can be built **and verified** without the owner
+at the keyboard, then what needs the owner — their account, their data, or a decision. Within a
+tier, each item is placed where it makes the next one worth more. Priority labels on the GitHub
+issues mirror this list.
 
-The first two unlock almost everything else, and both pay for themselves single-user. That is the
-test of whether planning for later is honest.
+### Without the owner
+
+1. **P0** `issue.0004.responsive-window.md` — finish it; it is daily use, and the placement it
+   settles is what #12 remembers
+2. **P0** `issue.0012.window-restore-position.md` — remember the robot's position, validated
+   against the monitor layout on every show
+3. **P0** `issue.0006.per-item-storage.md` — unblocks #8, #9, #7 and #14, and the 2 MB blob is
+   nearly full. Migration proven on a synthetic workspace of the live one's size
+4. **P1** `issue.0008.upstream-renames.md` — first use of `updated` and `title_edited_by_user`
+5. **P1** `issue.0009.upstream-deletes.md` — first use of tombstones and `missing_since`; its
+   archive rule is confirmed only once #13 is answered
+6. **P1** `issue.0007.workspace-api.md` — one interface, IPC and HTTP; the browser preview finally
+   sees the real workspace
+7. **P1** `issue.0010.extension-search.md` — the first read route, on top of #7
+8. **P2** `issue.0017.robot-genome.md` — independent; built here, but the look needs the owner's
+   eye before it lands
+
+### Needs the owner
+
+9. **Review** `issue.0013.claude-projects-count.md` — one import and **Copy import report**.
+   Smallest ask, and #9 depends on the answer, so it comes first
+10. Not an issue: run the #6 migration on the live workspace, then #8 and #9 against a real
+    re-import
+11. **P3** `issue.0011.prime-composer.md` — `?q=` and both composers can only be confirmed signed in
+12. **P3** `issue.0014.shared-workspaces.md` — needs the `shared-vs-overlay` decision and a chosen
+    server; then `issue.0016.deployment-modes.md`, then `issue.0015.mobile-client.md`
+13. **P3** `issue.0005.code-tools-in-launcher.md` — held by decision; needs a machine with both
+    tools signed in
+
+### Dependencies
 
 ```
 issue.0006.per-item-storage.md          rows + updated + tombstones; the 2 MB blob is nearly full
@@ -39,24 +71,16 @@ issue.0007.workspace-api.md             one API, consumed by the desktop itself
                     +-- issue.0016.deployment-modes.md  compose / PaaS / Postgres · backlog
 ```
 
-Independent of all the above, and small:
-
-- [ ] `issue.0011.prime-composer.md` — open a chat with the prompt already typed, never submitted
-- [ ] `issue.0012.window-restore-position.md` — reappear where it was, or centred
-- [ ] `issue.0013.claude-projects-count.md` — settle 21 of 34 from one import report
-- [ ] `issue.0005.code-tools-in-launcher.md` — Claude Code and Codex back in the launcher
-
 ## Backlog — potential providers
 
 Not scheduled. Each is a launch half that is small and an import half blocked on an endpoint nobody
 has observed yet.
 
-- [ ] `issue.0019.perplexity-provider.md` — Perplexity in New chat; import only once a list endpoint is known
-- [ ] `issue.0020.grok-import.md` — Grok already opens; import and extension saves need a list endpoint
+- [ ] **P3** `issue.0019.perplexity-provider.md` — Perplexity in New chat; import only once a list endpoint is known
+- [ ] **P3** `issue.0020.grok-import.md` — Grok already opens; import and extension saves need a list endpoint
 
 ## Longer-lived
 
-- [ ] `issue.0017.robot-genome.md` — the robot as a declarative, mutable genome
 - [ ] Database upgrades and versioned backups — a prerequisite for the storage migration
 - [ ] Edit saved chats and re-link moved project folders
 - [ ] Signed installers, so there is no first-launch warning
