@@ -5,6 +5,7 @@ state: open
 opened: 2026-10-23
 closed:
 github: https://github.com/xingh/orbit/issues/16
+owner: file
 arkitype: [01, 02]
 prerequisites: [issue.0007.workspace-api.md]
 ---

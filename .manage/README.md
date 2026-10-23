@@ -16,8 +16,16 @@ ROADMAP.md                      sequence and dependencies; never archived
 ```
 
 The number is the join to GitHub. `issue.0005.code-tools-in-launcher.md` is
-`https://github.com/xingh/orbit/issues/5`, and the issue body should link back to the file rather
-than restate it: the issue has a lifecycle, the file has the thinking, and the thinking outlives
+`https://github.com/xingh/orbit/issues/5`.
+
+The **file is the source of truth** for work we raised ourselves; the issue carries a copy of it so
+that it reads on its own for someone who only ever sees GitHub. `./manage sync <number>` pushes the
+file's title and body into the issue, so the two never drift.
+
+An issue someone else raised is marked `owner: github`, and `sync` refuses to touch it — their
+words are the report, and the file alongside it is our reading of it. Say what you have to say
+there in a comment. Edit the file, sync, and let the issue's comments carry the
+conversation — the ticket has a lifecycle, the file has the thinking, and the thinking outlives
 the ticket.
 
 ## Front matter
@@ -32,6 +40,7 @@ state: open              # open | in-progress | done
 opened: 2026-10-19
 closed:                  # filled in when it moves to .archive/
 github: https://github.com/xingh/orbit/issues/5
+owner: file              # file | github — only `file` may be overwritten by `manage sync`
 arkitype: [03, 04]       # which layers it changes
 prerequisites: []        # other files here that must land first
 ---
