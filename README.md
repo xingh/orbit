@@ -29,7 +29,7 @@ Your AI conversations are scattered across browser tabs, apps and terminals. Orb
 
 | | |
 | --- | --- |
-| 💬 **New chat in one click** | Open Claude, ChatGPT, Codex or Claude Code on their official sites, already signed in as you. |
+| 💬 **New chat in one click** | Open Claude, ChatGPT or Grok on their official sites, already signed in as you. |
 | 🔎 **Find anything you saved** | Save a conversation link once, then search it by title, note, tool or project. Press **Ctrl/Cmd + K** to search. |
 | 📁 **Projects that remember** | Keep a folder and its related chats together. Open the folder or launch your coding tool right there. |
 | 🛡 **Your subscription, never an API bill** | Orbit never asks for API keys. Claude Code and Codex launch only when they are signed in with your plan. |
@@ -87,9 +87,16 @@ The builds aren't code-signed yet, so your computer may warn you the first time:
 - **Drag** the robot, or any empty spot on the open panel, to move Orbit anywhere on screen. A quick click on the robot still opens and closes the panel.
 - **Ctrl + Shift + Space** (**Cmd + Shift + Space** on Mac) shows or hides Orbit from anywhere. It is also in the tray / menu bar.
 
+## Claude Code and Codex
+
+The launcher currently shows web chat only. The native subscription gate and terminal adapters
+below are built and tested, but are not offered in the UI while the browser extension and history
+import settle; [issue #5](https://github.com/xingh/orbit/issues/5) tracks bringing them back.
+Projects saved with a coding tool keep their **Open coding tool** button.
+
 ## How Orbit protects your subscriptions
 
-Orbit opens the **official** websites and the **official** local tools. It never calls model APIs, never stores passwords or cookies, and never asks for API keys.
+Orbit opens the **official** websites and the **official** local tools. It never calls model APIs, never stores passwords or cookies, and never asks for API keys. The extension reads conversation and project *lists* when you ask it to import them, and never message content.
 
 Before launching **Claude Code** or **Codex** in a project folder, Orbit asks the tool how it is signed in (`claude auth status`, `codex login status`):
 
@@ -101,6 +108,21 @@ Before launching **Claude Code** or **Codex** in a project folder, Orbit asks th
 | Anything unclear | Doesn't launch. Offers the web version |
 
 API-key environment variables (`ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, …) are removed from anything Orbit starts.
+
+## Project context
+
+Orbit keeps its own context in the repository, in the [Arkitype](https://github.com/xingh/arkitype)
+layout, so the thinking travels with the source even though GitHub is where work is taken in:
+
+| Folder | What is in it |
+| --- | --- |
+| `.knowledge/` | What is true regardless of what is built — principles, and hard-won reference material about the providers' own endpoints |
+| `.arkitype/` | How Orbit is constituted, in layers: `00` identity, `01` infrastructure, `02` database, `03` software, `04` interface |
+| `.manage/` | What is to be done, one file per GitHub issue, plus `ROADMAP.md` |
+| `.archive/` | What was done |
+
+`./manage status` shows what is open. `CLAUDE.md` is the short version for an agent opening the
+checkout.
 
 ## Build from source
 
@@ -132,10 +154,16 @@ macOS signing and notarization switch on automatically once the repo has the `AP
 - [x] Floating robot widget with the New chat / Find / Projects pill
 - [x] Native app for Windows, macOS and Linux, with installers on every tag
 - [x] Subscription check before launching Claude Code / Codex
-- [ ] Database upgrades and versioned backups
+- [x] Save straight from Chrome, Edge and Firefox into the running app
+- [x] Import your existing Claude and ChatGPT web chats and projects in one click
+- [ ] Per-item storage, so a renamed or deleted conversation can be kept in step
 - [ ] Edit saved chats and re-link moved project folders
+- [ ] One workspace API, and a workspace you can host and share
+- [ ] A read-only phone client, paired by QR
 - [ ] Signed installers (no first-launch warnings)
-- [ ] Optional Grok integration beyond opening the website
+
+The sequenced version, with dependencies and the reasoning behind each item, is
+[`.manage/ROADMAP.md`](.manage/ROADMAP.md).
 
 ## Good to know
 
@@ -145,4 +173,72 @@ macOS signing and notarization switch on automatically once the repo has the `AP
 
 ## Browser extension
 
-In Chrome or Edge, open Extensions, enable Developer mode, choose Load unpacked, and select `browser-extension`. On an official conversation page, open Orbit Chat Saver and save the title/link. Export the collection, then use Orbit Preferences → Import saved work. The extension uses only active-tab metadata, local storage, and downloads. It has no background scraping, host permissions, or credential access. Transfer is currently explicit export/import, not live sync. Extension installation/testing remains manual.
+Orbit runs a small service on `127.0.0.1` while it is open, and the extension saves straight into it.
+The same unpacked folder works in Chrome, Edge and Firefox.
+
+| Browser | How to load it |
+| --- | --- |
+| Chrome / Edge | Extensions → turn on **Developer mode** → **Load unpacked** → choose `browser-extension` |
+| Firefox | `about:debugging#/runtime/this-firefox` → **Load Temporary Add-on** → choose `browser-extension/manifest.json` |
+
+Then pair the browser once:
+
+1. In Orbit, open **Preferences → Browser extension → Pair a browser**. Pairing stays open for 60 seconds.
+2. In the browser, open the Orbit extension. The first time, click **Allow Orbit access** so it may reach `127.0.0.1`, then click **Pair with Orbit**.
+
+After that, **Save this chat** sends the title and link to Orbit and it appears in **Find** straight away.
+If Orbit is closed, the chat waits in the extension and is sent the next time you open the popup with
+Orbit running.
+
+### Importing the chats and projects you already have
+
+**Import existing chats and projects** reads your Claude and ChatGPT conversation *and* project
+lists and sends every title and link to Orbit in one pass. The browser asks for access to those two
+sites the first time, and the import runs in the background, so you can close the popup while it
+works. Anything Orbit already has is skipped, so running it again is safe and costs nothing.
+
+It reads only the lists — titles, ids and dates. Message content is never requested. It uses the
+endpoints each site's own sidebar uses, through the session already in your browser, so nothing asks
+for a password and no API key is involved.
+
+Each service's **projects are read before its chats**, and a chat that belongs to a project is filed
+under it, so opening a project in Orbit shows the conversations that live there. A chat Orbit already
+had gains that link the next time you import — nothing else about it is touched, so a title you
+edited or an entry you pinned stays as you left it.
+
+The four lists are read independently, so one failing never costs the others. Three details are
+worth knowing, because all three have bitten a real import:
+
+- A Claude account usually has **more than one organization** — a Console one beside the claude.ai
+  one — and only some will serve a chat list; the rest answer 403. Orbit tries every organization and
+  keeps whatever answers, so a personal and a team workspace both come in.
+- ChatGPT's project list is **cursor-paged**, not offset-paged. Reading only its first page is why
+  an earlier import found five projects and stopped; every page is followed now.
+- These endpoints are internal and can change without notice. When a list cannot be read, the import
+  says which one and why, and offers **Copy import report** — a short log of each request, its
+  status, and the field *names* (never values) of the first row it held. Pasting that into an issue
+  is enough to fix a mapping.
+
+Web chat only: Claude Code and Codex are launched from Orbit itself rather than saved from a
+browser. [Issue #5](https://github.com/xingh/orbit/issues/5) tracks supporting them.
+
+### What the service will and will not do
+
+- It listens on loopback only, on the first free port in `41479–41483`.
+- Every save needs the pairing token **and** a browser-extension origin, so a web page that finds the
+  port cannot read or write anything.
+- Only conversation titles and links are sent — never message content.
+- Saving one chat uses the active tab alone. Importing your history needs access to `claude.ai` and
+  `chatgpt.com`, which the browser asks for at the moment you start an import, not at install.
+- An import reads from the extension first. If a list comes back empty it runs the same requests
+  inside a tab on the provider, where they are same-origin with your signed-in session; a tab opened
+  for that is opened in the background and closed again.
+- It accepts conversations and projects only. A browser cannot pin entries or set local folders, and
+  it can file a chat only under a project that is really there — a link naming anything else is
+  dropped and the chat is saved loose.
+- **Preferences → Forget paired browsers** gives Orbit a new token, so every browser must pair again.
+- The window and the service write to the same storage. A window save keeps any entry it has not
+  seen rather than overwriting it, so an import running while you work cannot lose entries.
+
+Orbit's own **Workspace backup** export and **Import saved work** are unchanged, for moving a
+workspace between computers.

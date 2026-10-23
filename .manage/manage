@@ -1,0 +1,202 @@
+#!/usr/bin/env bash
+# Orbit project management utility. See .manage/README.md for the conventions it enforces.
+# Usage: ./manage <command> [options]
+set -euo pipefail
+
+readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+readonly ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+readonly MANAGE="${ROOT}/.manage"
+readonly ARCHIVE="${ROOT}/.archive"
+readonly VERSION="1.0.0"
+
+if [[ -t 1 ]]; then
+  C_R=$'\033[0;31m'; C_G=$'\033[0;32m'; C_Y=$'\033[1;33m'; C_C=$'\033[0;36m'; C_M=$'\033[0;35m'; C_0=$'\033[0m'
+else
+  C_R=''; C_G=''; C_Y=''; C_C=''; C_M=''; C_0=''
+fi
+err()  { echo "${C_R}error:${C_0} $1" >&2; }
+ok()   { echo "${C_G}ok:${C_0} $1"; }
+info() { echo "${C_C}·${C_0} $1"; }
+head_() { echo; echo "${C_M}$1${C_0}"; }
+
+stamp() { date '+%Y.%m.%d.%H.%M.%S'; }
+today() { date '+%Y-%m-%d'; }
+
+# Front matter field of a management file: field <file> <key>
+field() { sed -n "/^---$/,/^---$/p" "$1" | sed -n "s/^$2: *//p" | head -1; }
+
+# Resolve an issue number or "draft/<slug>" to a file in .manage
+locate() {
+  local key="$1" hit
+  if [[ "$key" =~ ^[0-9]+$ ]]; then
+    hit=$(find "$MANAGE" -maxdepth 1 -name "issue.$(printf '%04d' "$key").*.md" | head -1)
+  else
+    hit=$(find "$MANAGE" -maxdepth 1 -name "issue.*${key}*.md" | head -1)
+  fi
+  [[ -n "$hit" ]] && echo "$hit"
+}
+
+cmd_new() {
+  local number="${1:-}" slug="${2:-}"
+  [[ -z "$number" || -z "$slug" ]] && { err "usage: manage new <number|draft> <slug>"; return 1; }
+  local label link
+  if [[ "$number" == "draft" ]]; then
+    label=draft; link=""
+  elif [[ "$number" =~ ^[0-9]+$ ]]; then
+    label=$(printf '%04d' "$number"); link="https://github.com/xingh/orbit/issues/${number}"
+  else
+    err "number must be digits or the word draft"; return 1
+  fi
+  local file="${MANAGE}/issue.${label}.${slug}.md"
+  [[ -e "$file" ]] && { err "already exists: ${file#$ROOT/}"; return 1; }
+  cat > "$file" <<TPL
+---
+issue: ${number}
+title: ${slug//-/ }
+state: open
+opened: $(today)
+closed:
+github: ${link}
+arkitype: []
+prerequisites: []
+---
+
+# ${slug//-/ }
+
+## What
+
+## Why it matters
+
+## Ruled out
+
+## Done when
+TPL
+  ok "created ${file#$ROOT/}"
+}
+
+cmd_done() {
+  local key="${1:-}"
+  [[ -z "$key" ]] && { err "usage: manage done <number|slug>"; return 1; }
+  local file; file=$(locate "$key")
+  [[ -z "$file" ]] && { err "no management file matches '$key'"; return 1; }
+  mkdir -p "$ARCHIVE"
+  local base; base=$(basename "$file")
+  local target="${ARCHIVE}/${base}"
+  [[ -e "$target" ]] && target="${ARCHIVE}/${base%.md}.$(stamp).md"
+  # Stamp state and closing date before it moves, so the archived copy is self-describing.
+  sed -i'' -e "s/^state: .*/state: done/" -e "s/^closed: *$/closed: $(today)/" "$file"
+  if git -C "$ROOT" ls-files --error-unmatch "$file" >/dev/null 2>&1; then
+    git -C "$ROOT" mv "$file" "$target"
+  else
+    mv "$file" "$target"
+  fi
+  ok "archived ${target#$ROOT/}"
+  info "remember to close the GitHub issue if it has a number"
+}
+
+cmd_archive() {
+  local message="${1:-end of session}"
+  local dir="${ARCHIVE}/.manage.$(stamp)"
+  mkdir -p "$dir"
+  local moved=0
+  shopt -s nullglob
+  for f in "$MANAGE"/*.md; do
+    [[ "$(basename "$f")" == "ROADMAP.md" || "$(basename "$f")" == "README.md" ]] && continue
+    cp "$f" "$dir/" && moved=$((moved+1))
+  done
+  shopt -u nullglob
+  cat > "${dir}/ARCHIVE_SUMMARY.md" <<SUM
+# Archive $(stamp)
+
+$message
+
+Files: ${moved}
+Branch: $(git -C "$ROOT" branch --show-current 2>/dev/null || echo n/a)
+Commit: $(git -C "$ROOT" rev-parse --short HEAD 2>/dev/null || echo n/a)
+
+Copies, not moves — the originals stay in .manage for continuity. Use \`manage done <n>\` to
+retire a single issue.
+SUM
+  ok "snapshot of ${moved} file(s) in ${dir#$ROOT/}"
+}
+
+cmd_clean() {
+  local dry=false deep=false
+  for a in "$@"; do
+    [[ "$a" == "--dry-run" ]] && dry=true
+    [[ "$a" == "--all" ]] && deep=true
+  done
+  local -a patterns=('*.tmp' '*.bak' '*.swp' '*~' '.DS_Store')
+  local -a dirs=('dist' 'src-tauri/target/debug/incremental')
+  $deep && dirs+=('node_modules' 'src-tauri/target')
+  local n=0
+  for p in "${patterns[@]}"; do
+    while IFS= read -r f; do
+      [[ -z "$f" ]] && continue
+      $dry && info "would remove ${f#$ROOT/}" || rm -f "$f"
+      n=$((n+1))
+    done < <(find "$ROOT" -name "$p" -not -path '*/node_modules/*' -not -path '*/.git/*' -type f 2>/dev/null)
+  done
+  for d in "${dirs[@]}"; do
+    [[ -d "${ROOT}/${d}" ]] || continue
+    $dry && info "would remove ${d}/ ($(du -sh "${ROOT}/${d}" 2>/dev/null | cut -f1))" || rm -rf "${ROOT}/${d}"
+    n=$((n+1))
+  done
+  $dry && info "dry run: nothing was removed" || ok "cleaned ${n} item(s)"
+}
+
+cmd_status() {
+  head_ "Orbit"
+  info "branch:  $(git -C "$ROOT" branch --show-current 2>/dev/null || echo 'not a git repo')"
+  info "commit:  $(git -C "$ROOT" log -1 --oneline 2>/dev/null || echo n/a)"
+  if git -C "$ROOT" rev-parse --git-dir >/dev/null 2>&1; then
+    local dirty untracked
+    dirty=$(git -C "$ROOT" status --porcelain | grep -c '^ *M' || true)
+    untracked=$(git -C "$ROOT" status --porcelain | grep -c '^??' || true)
+    info "changes: ${dirty} modified, ${untracked} untracked"
+  fi
+  head_ "Open in .manage"
+  shopt -s nullglob
+  local any=false
+  for f in "$MANAGE"/issue.*.md; do
+    any=true
+    local state; state=$(field "$f" state)
+    local colour="$C_Y"; [[ "$state" == done ]] && colour="$C_G"
+    printf '  %s%-12s%s %s\n' "$colour" "${state:-?}" "$C_0" "$(basename "$f")"
+  done
+  shopt -u nullglob
+  $any || info "nothing open"
+  head_ "Archived"
+  info "$(find "$ARCHIVE" -maxdepth 1 -name 'issue.*.md' 2>/dev/null | wc -l | tr -d ' ') issue file(s), $(find "$ARCHIVE" -maxdepth 1 -type d -name '.manage.*' 2>/dev/null | wc -l | tr -d ' ') snapshot(s)"
+  echo
+}
+
+cmd_help() {
+  cat <<'HLP'
+Orbit management utility
+
+  manage status                  repository health and what is open in .manage
+  manage new <n|draft> <slug>    start an issue file from the template
+  manage done <n|slug>           stamp it done and move it to .archive/
+  manage archive [message]       snapshot .manage (except ROADMAP/README) into .archive/
+  manage clean [--dry-run|--all] remove temporary files and build output
+  manage help | version
+
+Conventions live in .manage/README.md. Knowledge in .knowledge/, the system itself in .arkitype/.
+HLP
+}
+
+main() {
+  local cmd="${1:-help}"; shift || true
+  case "$cmd" in
+    new)     cmd_new "$@" ;;
+    done)    cmd_done "$@" ;;
+    archive) cmd_archive "$@" ;;
+    clean)   cmd_clean "$@" ;;
+    status)  cmd_status ;;
+    version) echo "manage ${VERSION}" ;;
+    help|-h|--help) cmd_help ;;
+    *) err "unknown command: ${cmd}"; cmd_help; return 1 ;;
+  esac
+}
+main "$@"
