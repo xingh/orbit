@@ -3,11 +3,12 @@
 mod clients;
 mod paths;
 mod providers;
+mod service;
 mod terminal;
 
 use rusqlite::{Connection, OptionalExtension};
 use serde::Serialize;
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 use tauri::{Emitter, Manager, State};
 use tauri_plugin_global_shortcut::{Code, GlobalShortcutExt, Modifiers, Shortcut, ShortcutState};
 
@@ -86,20 +87,113 @@ fn load_data(db: State<Database>) -> Result<String, String> {
         .map_err(|e| e.to_string())
 }
 
+/// Saves the window's workspace without discarding what it has not seen.
+///
+/// The companion service also writes here, and the window builds its JSON before taking the lock,
+/// so a plain overwrite loses any entry the service saved in between — which is how an imported
+/// chat could reappear without the project it belonged to. Entries in storage that the window
+/// neither sent nor says it removed are therefore kept.
 #[tauri::command]
-fn save_data(json: String, db: State<Database>) -> Result<(), String> {
+fn save_data(json: String, removed: Vec<String>, db: State<Database>) -> Result<(), String> {
     if json.len() > 2_000_000 {
         return Err("Workspace exceeds the 2 MB limit. Export and archive older entries.".into());
     }
-    let value: serde_json::Value = serde_json::from_str(&json).map_err(|e| e.to_string())?;
+    let mut value: serde_json::Value = serde_json::from_str(&json).map_err(|e| e.to_string())?;
     if !value["items"].is_array() {
         return Err("Invalid workspace data".into());
     }
-    db.0.lock()
-        .map_err(|e| e.to_string())?
-        .execute("INSERT INTO workspace (id, json) VALUES (1, ?1) ON CONFLICT(id) DO UPDATE SET json = excluded.json", [json])
+    let db = db.0.lock().map_err(|e| e.to_string())?;
+    let stored: Option<String> = db
+        .query_row("SELECT json FROM workspace WHERE id = 1", [], |row| {
+            row.get(0)
+        })
+        .optional()
+        .unwrap_or(None);
+    let kept = unseen_items(&value, stored.as_deref(), &removed);
+    if !kept.is_empty() {
+        let items = value["items"].as_array_mut().expect("items array");
+        items.extend(kept);
+    }
+    let merged = value.to_string();
+    if merged.len() > 2_000_000 {
+        return Err("Workspace exceeds the 2 MB limit. Export and archive older entries.".into());
+    }
+    db.execute("INSERT INTO workspace (id, json) VALUES (1, ?1) ON CONFLICT(id) DO UPDATE SET json = excluded.json", [merged])
         .map(|_| ())
         .map_err(|e| e.to_string())
+}
+
+/// Stored entries the incoming workspace does not mention and the window did not remove.
+fn unseen_items(
+    incoming: &serde_json::Value,
+    stored: Option<&str>,
+    removed: &[String],
+) -> Vec<serde_json::Value> {
+    let Some(previous) = stored
+        .filter(|raw| !raw.is_empty())
+        .and_then(|raw| serde_json::from_str::<serde_json::Value>(raw).ok())
+    else {
+        return Vec::new();
+    };
+    let sent: std::collections::HashSet<&str> = incoming["items"]
+        .as_array()
+        .map(|items| {
+            items
+                .iter()
+                .filter_map(|item| item["id"].as_str())
+                .collect()
+        })
+        .unwrap_or_default();
+    previous["items"]
+        .as_array()
+        .map(|items| {
+            items
+                .iter()
+                .filter(|item| {
+                    item["id"].as_str().is_some_and(|id| {
+                        !sent.contains(id) && !removed.iter().any(|gone| gone == id)
+                    })
+                })
+                .cloned()
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
+#[tauri::command]
+fn service_info(
+    app: tauri::AppHandle,
+    service: State<Option<Arc<service::Service>>>,
+) -> Option<service::ServiceInfo> {
+    service.inner().as_ref().map(|s| service::info(&app, s))
+}
+
+#[tauri::command]
+fn start_pairing(service: State<Option<Arc<service::Service>>>) -> Result<u64, String> {
+    service
+        .inner()
+        .as_ref()
+        .map(|s| service::open_pairing(s))
+        .ok_or_else(|| "The companion service is not running.".to_string())
+}
+
+#[tauri::command]
+fn stop_pairing(service: State<Option<Arc<service::Service>>>) {
+    if let Some(service) = service.inner().as_ref() {
+        service::close_pairing(service);
+    }
+}
+
+#[tauri::command]
+fn unpair_browsers(
+    app: tauri::AppHandle,
+    service: State<Option<Arc<service::Service>>>,
+) -> Result<(), String> {
+    if let Some(service) = service.inner().as_ref() {
+        service::close_pairing(service);
+    }
+    // Rotating the token is what actually revokes access; clearing the list alone would not.
+    service::rotate_token(&app)
 }
 
 #[tauri::command]
@@ -247,15 +341,27 @@ async fn launch_code(
         .map_err(|e| e.to_string())?
 }
 
-fn reveal(app: &tauri::AppHandle) {
+fn show_window(app: &tauri::AppHandle) -> Option<tauri::WebviewWindow> {
     // Activating from a second launch or the Dock can turn the menu-bar companion into a regular app.
     #[cfg(target_os = "macos")]
     let _ = app.set_activation_policy(tauri::ActivationPolicy::Accessory);
-    if let Some(window) = app.get_webview_window("main") {
-        let _ = window.unminimize();
-        let _ = window.show();
-        let _ = window.set_focus();
+    let window = app.get_webview_window("main")?;
+    let _ = window.unminimize();
+    let _ = window.show();
+    let _ = window.set_focus();
+    Some(window)
+}
+
+fn reveal(app: &tauri::AppHandle) {
+    if let Some(window) = show_window(app) {
         let _ = window.emit("open-launcher", ());
+    }
+}
+
+/// Opens the companion straight onto one of its panels, for the tray menu.
+fn show_view(app: &tauri::AppHandle, view: &str) {
+    if let Some(window) = show_window(app) {
+        let _ = window.emit("open-view", view);
     }
 }
 
@@ -271,22 +377,60 @@ fn toggle(app: &tauri::AppHandle) {
 }
 
 fn build_tray(app: &tauri::App) -> tauri::Result<()> {
-    let show = tauri::menu::MenuItem::with_id(app, "show", "Open Orbit", true, None::<&str>)?;
-    let hide = tauri::menu::MenuItem::with_id(app, "hide", "Hide Orbit", true, None::<&str>)?;
-    let quit = tauri::menu::MenuItem::with_id(app, "quit", "Quit Orbit", true, None::<&str>)?;
-    let menu = tauri::menu::Menu::with_items(app, &[&show, &hide, &quit])?;
+    use tauri::menu::{MenuItem, PredefinedMenuItem};
+    let item = |id: &str, label: &str| MenuItem::with_id(app, id, label, true, None::<&str>);
+    let show = item("show", "Open Orbit")?;
+    let new_chat = item("view:new", "New chat…")?;
+    let find = item("view:find", "Find saved work…")?;
+    let projects = item("view:projects", "Projects…")?;
+    let preferences = item("view:settings", "Preferences…")?;
+    let pair = item("pair", "Pair a browser…")?;
+    let hide = item("hide", "Hide Orbit")?;
+    let quit = item("quit", "Quit Orbit")?;
+    let separator = PredefinedMenuItem::separator(app)?;
+    let menu = tauri::menu::Menu::with_items(
+        app,
+        &[
+            &show,
+            &separator,
+            &new_chat,
+            &find,
+            &projects,
+            &separator,
+            &preferences,
+            &pair,
+            &separator,
+            &hide,
+            &quit,
+        ],
+    )?;
     let mut tray = tauri::tray::TrayIconBuilder::with_id("orbit")
         .tooltip("Orbit")
         .menu(&menu)
         .on_menu_event(|app, event| match event.id.as_ref() {
             "show" => reveal(app),
+            "pair" => {
+                // Opening the window on Preferences shows the countdown the browser has to answer.
+                if let Some(service) = app
+                    .state::<Option<Arc<service::Service>>>()
+                    .inner()
+                    .as_ref()
+                {
+                    service::open_pairing(service);
+                }
+                show_view(app, "settings");
+            }
             "hide" => {
                 if let Some(window) = app.get_webview_window("main") {
                     let _ = window.hide();
                 }
             }
             "quit" => app.exit(0),
-            _ => {}
+            id => {
+                if let Some(view) = id.strip_prefix("view:") {
+                    show_view(app, view);
+                }
+            }
         });
     if let Some(icon) = app.default_window_icon() {
         tray = tray.icon(icon.clone());
@@ -317,6 +461,23 @@ fn main() {
             db.execute_batch("PRAGMA journal_mode=WAL; CREATE TABLE IF NOT EXISTS workspace (id INTEGER PRIMARY KEY, json TEXT NOT NULL);")?;
             app.manage(Database(Mutex::new(db)));
 
+            // The extension can only reach Orbit while it is running; a failure here must not stop
+            // the window from opening, so it is reported and the service is simply absent.
+            let service = {
+                let state: State<Database> = app.state();
+                let token = state.0.lock().ok().and_then(|db| service::prepare(&db).ok());
+                match token {
+                    Some(token) => service::start(&app.handle().clone(), token)
+                        .inspect_err(|error| eprintln!("Companion service unavailable: {error}"))
+                        .ok(),
+                    None => {
+                        eprintln!("Companion service unavailable: no pairing token");
+                        None
+                    }
+                }
+            };
+            app.manage(service);
+
             let mut caps = base_capabilities();
             let modifier = if cfg!(target_os = "macos") { Modifiers::SUPER } else { Modifiers::CONTROL };
             // A shortcut collision or an unsupported compositor must not prevent the companion from opening.
@@ -337,7 +498,7 @@ fn main() {
             app.manage(CapabilityState(Mutex::new(caps)));
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![capabilities, load_data, save_data, open_url, open_folder, pick_folder, export_backup, client_status, launch_code])
+        .invoke_handler(tauri::generate_handler![capabilities, load_data, save_data, open_url, open_folder, pick_folder, export_backup, client_status, launch_code, service_info, start_pairing, stop_pairing, unpair_browsers])
         .build(tauri::generate_context!())
         .expect("Could not start Orbit")
         .run(|_app, _event| {
@@ -346,4 +507,38 @@ fn main() {
                 reveal(_app);
             }
         });
+}
+
+#[cfg(test)]
+mod tests {
+    use super::unseen_items;
+
+    fn workspace(ids: &[&str]) -> serde_json::Value {
+        serde_json::json!({
+            "items": ids.iter().map(|id| serde_json::json!({ "id": id })).collect::<Vec<_>>(),
+        })
+    }
+
+    #[test]
+    fn a_window_save_keeps_what_it_has_not_seen() {
+        let stored = workspace(&["a", "b", "imported-while-saving"]).to_string();
+        // The window sends what it knows and names nothing as deleted.
+        let kept = unseen_items(&workspace(&["a", "b"]), Some(&stored), &[]);
+        assert_eq!(kept.len(), 1);
+        assert_eq!(kept[0]["id"], "imported-while-saving");
+    }
+
+    #[test]
+    fn a_deletion_is_not_mistaken_for_an_unseen_entry() {
+        let stored = workspace(&["a", "b"]).to_string();
+        let kept = unseen_items(&workspace(&["a"]), Some(&stored), &["b".to_string()]);
+        assert!(kept.is_empty());
+    }
+
+    #[test]
+    fn nothing_is_invented_from_empty_or_unreadable_storage() {
+        for stored in [None, Some(""), Some("not json")] {
+            assert!(unseen_items(&workspace(&["a"]), stored, &[]).is_empty());
+        }
+    }
 }

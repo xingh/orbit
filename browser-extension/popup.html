@@ -1,1 +1,22 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Orbit Chat Saver</title><link rel="stylesheet" href="popup.css"></head><body><header><span>◉</span> orbit <small>CHAT SAVER</small></header><p>Save this conversation to your local collection.</p><label>Name<input id="title" maxlength="120"></label><div id="service"></div><button id="save">Save this chat</button><div id="message" role="status"></div><hr><button id="export" class="secondary">Export saved chats</button><small class="hint">In Orbit, open Preferences → Import saved work and choose the exported file.</small><script type="module" src="popup.js"></script></body></html>
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>Orbit Chat Saver</title><link rel="stylesheet" href="popup.css"></head>
+<body>
+<header><span>◉</span> orbit <small>CHAT SAVER</small></header>
+<p id="status" class="status"><span id="dot" class="dot"></span><span id="status-text">Looking for Orbit…</span></p>
+<button id="connect" class="secondary" hidden>Allow Orbit access</button>
+<button id="pair" class="secondary" hidden>Pair with Orbit</button>
+<label>Name<input id="title" maxlength="120"></label>
+<div id="service"></div>
+<button id="save">Save this chat</button>
+<div id="message" role="status"></div>
+<small id="queue" class="hint" hidden></small>
+<hr>
+<button id="import" class="secondary" hidden>Import existing chats and projects</button>
+<small id="progress" class="hint" role="status" hidden></small>
+<button id="report" class="secondary" hidden>Copy import report</button>
+<textarea id="diagnostics" hidden readonly rows="6" aria-label="Import report"></textarea>
+<small class="hint">Imports your Claude and ChatGPT chat and project titles and links. Message content is never read.</small>
+<script type="module" src="popup.js"></script>
+</body>
+</html>
