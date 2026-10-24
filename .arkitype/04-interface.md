@@ -22,8 +22,11 @@ sizing:
     Anchored on the robot (src/placement.mjs), so opening and closing never moves it. The panel
     opens below when it fits, above when it does not and there is more room overhead — the pill then
     sits between panel and robot. Near a side edge the window stays inside the work area and the
-    robot slides toward the edge within it, so in a corner the panel opens diagonally away. Chosen
-    when the panel opens or closes, never while it is in use.
+    robot slides toward the edge within it, so in a corner the panel opens diagonally away. Where
+    neither side has room the panel is shortened (it scrolls, never below `minimum`) rather than
+    moving the robot. Closing returns the window to exactly where it was opened from, unless it was
+    dragged while open; closed, only the robot must stay on screen, so the window's transparent
+    margin may overlap the Dock or an edge. Chosen when the panel opens or closes, never in use.
   measured: 330x529 logical open (20.0% of a 1280x680 work area) and 330x205 collapsed
 dragging: from the robot or any empty part of the open panel; a click under 5px still toggles
 double_click: >

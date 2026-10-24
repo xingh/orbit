@@ -22,6 +22,8 @@ const FOOTPRINT = 0.2;
 const PILL_HALF = { normal: 165, tight: 150 };
 // Long enough to tell a double-click from a click; only a collapsed robot waits this long.
 const DOUBLE_CLICK_MS = 220;
+// The drawn robot is about this fraction of its stage's width, so this much of the stage may pass the window's edge.
+const ROBOT_REACH = 0.3;
 const MIN = { width: 330, height: 430 };
 /** Below this width the panel switches to its tighter layout. */
 const COMPACT_WIDTH = 430;
@@ -49,7 +51,7 @@ export default function App() {
   const [filter,setFilter]=useState('all');
   const [expanded,setExpanded]=useState(false);
   const [placement,setPlacement]=useState({above:false,shift:0,pill:0});
-  const placed=useRef({above:false,shift:0}),clickTimer=useRef<number|undefined>(undefined);
+  const placed=useRef({above:false,shift:0}),clickTimer=useRef<number|undefined>(undefined),home=useRef<{x:number;y:number;shift:number;opened:{x:number;y:number}}|null>(null);
   const [modal,setModal]=useState<'chat'|'project'|null>(null);
   const [draft,setDraft]=useState(blank);
   const [error,setError]=useState('');
@@ -137,22 +139,27 @@ export default function App() {
         if(!m||!area){await w.setSize(new LogicalSize(width,height));return;}
         const a=m.workArea,left=a.position.x/s,top=a.position.y/s;
         const stageHeight=stage-relief;
-        const reach=(document.querySelector<HTMLElement>('.robot-button')?.offsetWidth??width)/2;
+        const reach=(document.querySelector<HTMLElement>('.robot-button')?.offsetWidth??width)*ROBOT_REACH;
         // Anchored on the robot rather than the window, so opening and closing never moves it: the
         // panel opens below or above, and the robot slides sideways instead of off a screen edge.
         const anchor=anchorOf({x:p.x,y:p.y,width:before.width,height:before.height,stage:stageHeight,...placed.current});
-        const next=place({anchor,width,height,stage:stageHeight,expanded,area:{left,top,right:left+area.width,bottom:top+area.height},reach});
+        // Closing returns to exactly where the robot was put, unless the window was dragged while open.
+        const back=!expanded&&home.current&&Math.abs(p.x-home.current.opened.x)<2&&Math.abs(p.y-home.current.opened.y)<2?home.current:null;
+        const next=back?{x:back.x,y:back.y,above:false,shift:back.shift,height}:place({anchor,width,height,minHeight:Math.min(height,MIN.height-relief),stage:stageHeight,expanded,area:{left,top,right:left+area.width,bottom:top+area.height},reach});
+        if(!expanded)home.current=null;
+        else if(home.current)home.current.opened={x:next.x,y:next.y};
+        else home.current={x:p.x,y:p.y,shift:placed.current.shift,opened:{x:next.x,y:next.y}};
         const limit=Math.max(0,width/2-(tight?PILL_HALF.tight:PILL_HALF.normal));
         placed.current={above:next.above,shift:next.shift};
         setPlacement({...placed.current,pill:Math.max(-limit,Math.min(next.shift,limit))});
         // The window manager keeps a window inside the screen by the size it last saw, so a window that
         // is still tall when moved low gets pushed back up: shrink, wait for the size to land, then move.
-        if(height<before.height){
-          await w.setSize(new LogicalSize(width,height));
-          for(let i=0;i<15&&Math.abs((await w.outerSize()).toLogical(s).height-height)>1;i++)await new Promise(r=>setTimeout(r,16));
+        if(next.height<before.height){
+          await w.setSize(new LogicalSize(width,next.height));
+          for(let i=0;i<15&&Math.abs((await w.outerSize()).toLogical(s).height-next.height)>1;i++)await new Promise(r=>setTimeout(r,16));
           await w.setPosition(new LogicalPosition(next.x,next.y));
         }
-        else{await w.setPosition(new LogicalPosition(next.x,next.y));await w.setSize(new LogicalSize(width,height));}
+        else{await w.setPosition(new LogicalPosition(next.x,next.y));await w.setSize(new LogicalSize(width,next.height));}
       }catch{setNotice('Could not resize the companion.');}
     })();
   },[expanded,data.settings.robot]);

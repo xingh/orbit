@@ -79,6 +79,20 @@ second_display_size: >
   it was 330x676 in both states before the fix above. 3200x2400: 510x270 and 510x820.
 ```
 
+macOS 26.6 (child session, real dmg) on the first build: hover, double-click hide, tray menu,
+shortcut and accessory mode passed; three placement faults were found and fixed:
+
+```yaml
+pushed_up_near_dock: closing clamped the whole 270-point window above the Dock; now only the robot must fit
+moved_in_the_middle: a 747-point panel fit neither side of a 1085-point work area, so the robot was
+  dragged along and stayed moved; now the panel shortens to the larger side, and closing restores
+  the exact position it opened from
+corner_jump: the robot could slide only to half its stage width from the edge; the drawn robot is
+  about 0.3 of the stage (ROBOT_REACH), so it now slides that much further
+open_question: dragging into a screen corner let macOS tiling resize the window, because it must
+  stay resizable — the next open restored the size
+```
+
 ## Ruled out (second pass)
 
 A separate centred command window for Alfred-style use. The criterion was a "maybe", and a second

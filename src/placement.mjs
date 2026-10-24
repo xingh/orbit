@@ -8,14 +8,23 @@ export function anchorOf({ x, y, width, height, stage, shift = 0, above = false 
   return { cx: x + width / 2 + shift, top: above ? y + height - stage : y };
 }
 
-// `reach` is half the robot's width: the robot may slide sideways inside the window, but never past its edge.
-export function place({ anchor, width, height, stage, expanded, area, reach = width / 2 }) {
+// `reach` is how far the robot may come to the window's edge as it slides sideways inside it.
+export function place({ anchor, width, height, minHeight = height, stage, expanded, area, reach = width / 2 }) {
   const { left, top, right, bottom } = area;
-  const below = bottom - anchor.top, overhead = anchor.top + stage - top;
-  const above = expanded && below < height && overhead > below;
-  const y = Math.round(clamp(above ? anchor.top + stage - height : anchor.top, top, bottom - height));
-  const x = Math.round(clamp(anchor.cx - width / 2, left, right - width));
   const limit = Math.max(0, width / 2 - reach);
+  if (!expanded) {
+    // Closed, only the robot has to stay on screen; the window's transparent margin may overlap the Dock.
+    const x = Math.round(clamp(anchor.cx - width / 2, left - limit, right - width + limit));
+    const y = Math.round(clamp(anchor.top, top, bottom - stage));
+    return { x, y, above: false, shift: Math.round(anchor.cx - (x + width / 2)), height };
+  }
+  const below = bottom - anchor.top, overhead = anchor.top + stage - top;
+  const fits = below >= height || overhead >= height;
+  const above = below < height && overhead > below;
+  // Where neither side has room, a shorter panel (it scrolls) beats moving the robot.
+  const tall = fits ? height : Math.round(clamp(Math.max(below, overhead), minHeight, height));
+  const y = Math.round(clamp(above ? anchor.top + stage - tall : anchor.top, top, bottom - tall));
+  const x = Math.round(clamp(anchor.cx - width / 2, left, right - width));
   const shift = Math.round(clamp(anchor.cx - (x + width / 2), -limit, limit));
-  return { x, y, above, shift };
+  return { x, y, above, shift, height: tall };
 }
