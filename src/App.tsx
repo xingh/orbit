@@ -109,7 +109,7 @@ export default function App() {
   useEffect(()=>{if(native)void invoke<typeof caps>('capabilities').then(setCaps).catch(()=>{});},[]);
   useEffect(()=>{
     const key=(e:KeyboardEvent)=>{
-      if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='k'){e.preventDefault();setExpanded(true);setView('find');setTimeout(()=>searchRef.current?.focus(),30);}
+      if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='k'){e.preventDefault();setExpanded(true);setView('find');setTimeout(()=>searchRef.current?.focus({preventScroll:true}),30);}
       if(e.key==='Escape'){if(modal)setModal(null);else if(remove)setRemove(null);else if(project)setProject(null);else setExpanded(false);}
     }; window.addEventListener('keydown',key); return()=>window.removeEventListener('keydown',key);
   },[modal,remove,project]);
@@ -165,7 +165,7 @@ export default function App() {
   },[expanded,data.settings.robot]);
   useEffect(()=>{
     if(!native)return;
-    const subscription=listen('open-launcher',()=>{setExpanded(true);setView('find');setTimeout(()=>searchRef.current?.focus(),60);});
+    const subscription=listen('open-launcher',()=>{setExpanded(true);setView('find');setTimeout(()=>searchRef.current?.focus({preventScroll:true}),60);});
     return()=>{void subscription.then(unlisten=>unlisten());};
   },[]);
   useEffect(()=>{
@@ -180,7 +180,7 @@ export default function App() {
     const subscription=listen<View>('open-view',event=>{
       if(!['new','find','projects','settings'].includes(event.payload))return;
       setExpanded(true);setView(event.payload);setProject(null);setQuery('');setFilter('all');
-      if(event.payload==='find')setTimeout(()=>searchRef.current?.focus(),60);
+      if(event.payload==='find')setTimeout(()=>searchRef.current?.focus({preventScroll:true}),60);
       if(event.payload==='settings')refreshService();
     });
     return()=>{void subscription.then(unlisten=>unlisten());};
