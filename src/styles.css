@@ -53,3 +53,4 @@ html:has(.native),body:has(.native){overflow:hidden}
 .flat .robot-button,.native.flat .robot-button,.native.compact.flat .robot-button{width:120px;height:84px}
 .flat .robot-halo{width:150px;height:70px;bottom:4px}
 .flat .robot-caption{display:none}
+.native .robot-stage{transform:translateX(var(--shift,0px))}.native .pill{transform:translateX(var(--pill-shift,0px))}.native .companion.above{flex-direction:column-reverse}.native .companion.above .pill{margin:12px auto 4px}.native .companion.collapsed .pill{opacity:0;pointer-events:none;transition:opacity .18s ease}.native .companion.collapsed:hover .pill,.native .companion.collapsed .pill:has(:focus-visible){opacity:1;pointer-events:auto}

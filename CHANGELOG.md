@@ -10,6 +10,12 @@ was ruled out, and why — lives in `.manage/` and `.knowledge/`, not here.
 
 ### Added
 
+- **The panel opens where there is room** ([#4](https://github.com/xingh/orbit/issues/4)). Below
+  the robot when it fits, above it near the bottom of the screen, and diagonally away from a corner,
+  with the robot left exactly where it was put.
+- **The pill shows only on hover** (or keyboard focus), so a resting Orbit is just the robot.
+- **Double-click the robot to hide it in the tray**; on Windows, double-click the tray icon to
+  bring it back open.
 - **Projects are imported, and chats are filed under them.** Each service's projects are read
   before its chats, a chat carries its own project reference through, and a project list that
   names its conversations files them when the chat list does not.

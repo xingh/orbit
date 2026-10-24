@@ -15,7 +15,7 @@
         "label": "main",
         "title": "Orbit",
         "width": 510,
-        "height": 820,
+        "height": 270,
         "decorations": false,
         "transparent": true,
         "alwaysOnTop": true,

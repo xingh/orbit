@@ -4,5 +4,6 @@
   "description": "Local companion window controls only",
   "windows": ["main"],
   "permissions": ["core:default", "core:window:allow-start-dragging", "core:window:allow-set-size",
-    "core:window:allow-set-position"]
+    "core:window:allow-set-position", "core:window:allow-hide",
+    "core:window:allow-unmaximize"]
 }
