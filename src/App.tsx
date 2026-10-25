@@ -24,6 +24,8 @@ const PILL_HALF = { normal: 165, tight: 150 };
 const DOUBLE_CLICK_MS = 220;
 // The drawn robot is about this fraction of its stage's width, so this much of the stage may pass the window's edge.
 const ROBOT_REACH = 0.3;
+// The native window's vertical padding (.native in styles.css), between its edge and the robot's stage.
+const WINDOW_PAD = 8;
 const MIN = { width: 330, height: 430 };
 /** Below this width the panel switches to its tighter layout. */
 const COMPACT_WIDTH = 430;
@@ -144,10 +146,10 @@ export default function App() {
         const reach=(document.querySelector<HTMLElement>('.robot-button')?.offsetWidth??width)*ROBOT_REACH;
         // Anchored on the robot rather than the window, so opening and closing never moves it: the
         // panel opens below or above, and the robot slides sideways instead of off a screen edge.
-        const anchor=anchorOf({x:p.x,y:p.y,width:before.width,height:before.height,stage:stageHeight,...placed.current});
+        const anchor=anchorOf({x:p.x,y:p.y,width:before.width,height:before.height,stage:stageHeight,pad:WINDOW_PAD,...placed.current});
         // Closing returns to exactly where the robot was put, unless the window was dragged while open.
         const back=!expanded&&home.current&&Math.abs(p.x-home.current.opened.x)<2&&Math.abs(p.y-home.current.opened.y)<2?home.current:null;
-        const next=back?{x:back.x,y:back.y,above:back.above,shift:back.shift,height}:place({anchor,width,height,minHeight:Math.min(height,MIN.height-relief),stage:stageHeight,expanded,area:{left,top,right:left+area.width,bottom:top+area.height},reach});
+        const next=back?{x:back.x,y:back.y,above:back.above,shift:back.shift,height}:place({anchor,pad:WINDOW_PAD,width,height,minHeight:Math.min(height,MIN.height-relief),stage:stageHeight,expanded,area:{left,top,right:left+area.width,bottom:top+area.height},reach});
         if(!expanded)home.current=null;
         else if(home.current)home.current.opened={x:next.x,y:next.y};
         else home.current={x:p.x,y:p.y,shift:placed.current.shift,above:placed.current.above,opened:{x:next.x,y:next.y}};

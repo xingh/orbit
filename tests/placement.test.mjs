@@ -88,3 +88,11 @@ test('a work area that starts below a top bar is respected', () => {
   const p = place({ ...open, anchor: at(640, 10), area: { ...area, top: 32 } });
   assert.equal(p.y, 32);
 });
+
+test('the window padding is counted, so flipping the pill does not move the robot', () => {
+  const mac = { left: 0, top: 30, right: 1600, bottom: 1160 };
+  const anchor = anchorOf({ x: 551, y: 976, width: 480, height: 270, stage: 185, pad: 8 });
+  const p = place({ width: 480, height: 270, stage: 185, expanded: false, reach: 70, pad: 8, anchor, area: mac });
+  assert.equal(p.above, true);
+  assert.equal(anchorOf({ ...p, width: 480, stage: 185, pad: 8 }).top, Math.min(anchor.top, 1160 - 185));
+});
