@@ -26,7 +26,8 @@ sizing:
     neither side has room the panel is shortened (it scrolls, never below `minimum`) rather than
     moving the robot. Closing returns the window to exactly where it was opened from, unless it was
     dragged while open; closed, only the robot must stay on screen, so the window's transparent
-    margin may overlap the Dock or an edge. Chosen when the panel opens or closes, never in use.
+    margin may overlap the Dock or an edge, and where the pill would land behind the Dock or taskbar
+    it moves above the robot — re-checked after every drag of a closed robot. Chosen when the panel opens or closes, never in use.
   measured: 330x529 logical open (20.0% of a 1280x680 work area) and 330x205 collapsed
 dragging: from the robot or any empty part of the open panel; a click under 5px still toggles
 double_click: >

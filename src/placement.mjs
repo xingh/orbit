@@ -13,10 +13,12 @@ export function place({ anchor, width, height, minHeight = height, stage, expand
   const { left, top, right, bottom } = area;
   const limit = Math.max(0, width / 2 - reach);
   if (!expanded) {
-    // Closed, only the robot has to stay on screen; the window's transparent margin may overlap the Dock.
+    // Closed, only the robot has to stay on screen. Where the pill would land behind the Dock or
+    // taskbar it moves above the robot instead, and the window moves up so the robot does not.
     const x = Math.round(clamp(anchor.cx - width / 2, left - limit, right - width + limit));
-    const y = Math.round(clamp(anchor.top, top, bottom - stage));
-    return { x, y, above: false, shift: Math.round(anchor.cx - (x + width / 2)), height };
+    const robot = clamp(anchor.top, top, bottom - stage), above = robot + height > bottom;
+    const y = Math.round(above ? robot + stage - height : robot);
+    return { x, y, above, shift: Math.round(anchor.cx - (x + width / 2)), height };
   }
   const below = bottom - anchor.top, overhead = anchor.top + stage - top;
   const fits = below >= height || overhead >= height;

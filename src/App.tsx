@@ -50,8 +50,10 @@ export default function App() {
   const [query,setQuery]=useState('');
   const [filter,setFilter]=useState('all');
   const [expanded,setExpanded]=useState(false);
+  const [settle,setSettle]=useState(0);
+  const expandedRef=useRef(expanded);expandedRef.current=expanded;
   const [placement,setPlacement]=useState({above:false,shift:0,pill:0});
-  const placed=useRef({above:false,shift:0}),clickTimer=useRef<number|undefined>(undefined),home=useRef<{x:number;y:number;shift:number;opened:{x:number;y:number}}|null>(null);
+  const placed=useRef({above:false,shift:0}),clickTimer=useRef<number|undefined>(undefined),home=useRef<{x:number;y:number;shift:number;above:boolean;opened:{x:number;y:number}}|null>(null),lastSet=useRef<{x:number;y:number}|null>(null);
   const [modal,setModal]=useState<'chat'|'project'|null>(null);
   const [draft,setDraft]=useState(blank);
   const [error,setError]=useState('');
@@ -145,15 +147,16 @@ export default function App() {
         const anchor=anchorOf({x:p.x,y:p.y,width:before.width,height:before.height,stage:stageHeight,...placed.current});
         // Closing returns to exactly where the robot was put, unless the window was dragged while open.
         const back=!expanded&&home.current&&Math.abs(p.x-home.current.opened.x)<2&&Math.abs(p.y-home.current.opened.y)<2?home.current:null;
-        const next=back?{x:back.x,y:back.y,above:false,shift:back.shift,height}:place({anchor,width,height,minHeight:Math.min(height,MIN.height-relief),stage:stageHeight,expanded,area:{left,top,right:left+area.width,bottom:top+area.height},reach});
+        const next=back?{x:back.x,y:back.y,above:back.above,shift:back.shift,height}:place({anchor,width,height,minHeight:Math.min(height,MIN.height-relief),stage:stageHeight,expanded,area:{left,top,right:left+area.width,bottom:top+area.height},reach});
         if(!expanded)home.current=null;
         else if(home.current)home.current.opened={x:next.x,y:next.y};
-        else home.current={x:p.x,y:p.y,shift:placed.current.shift,opened:{x:next.x,y:next.y}};
+        else home.current={x:p.x,y:p.y,shift:placed.current.shift,above:placed.current.above,opened:{x:next.x,y:next.y}};
         const limit=Math.max(0,width/2-(tight?PILL_HALF.tight:PILL_HALF.normal));
         placed.current={above:next.above,shift:next.shift};
         setPlacement({...placed.current,pill:Math.max(-limit,Math.min(next.shift,limit))});
         // The window manager keeps a window inside the screen by the size it last saw, so a window that
         // is still tall when moved low gets pushed back up: shrink, wait for the size to land, then move.
+        lastSet.current={x:next.x,y:next.y};
         if(next.height<before.height){
           await w.setSize(new LogicalSize(width,next.height));
           for(let i=0;i<15&&Math.abs((await w.outerSize()).toLogical(s).height-next.height)>1;i++)await new Promise(r=>setTimeout(r,16));
@@ -162,7 +165,19 @@ export default function App() {
         else{await w.setPosition(new LogicalPosition(next.x,next.y));await w.setSize(new LogicalSize(width,next.height));}
       }catch{setNotice('Could not resize the companion.');}
     })();
-  },[expanded,data.settings.robot]);
+  },[expanded,data.settings.robot,settle]);
+  useEffect(()=>{
+    if(!native)return;
+    // After the user drags a closed robot, re-check whether its pill still fits below it. Moves this
+    // component made itself are ignored, so placing the window never feeds back into another pass.
+    let timer:number|undefined;
+    const moved=getCurrentWindow().onMoved(({payload})=>{window.clearTimeout(timer);timer=window.setTimeout(async()=>{
+      if(expandedRef.current)return;
+      const q=payload.toLogical(await getCurrentWindow().scaleFactor()),l=lastSet.current;
+      if(!l||Math.abs(q.x-l.x)>=2||Math.abs(q.y-l.y)>=2)setSettle(n=>n+1);
+    },250);});
+    return()=>{window.clearTimeout(timer);void moved.then(stop=>stop());};
+  },[]);
   useEffect(()=>{
     if(!native)return;
     const subscription=listen('open-launcher',()=>{setExpanded(true);setView('find');setTimeout(()=>searchRef.current?.focus({preventScroll:true}),60);});
@@ -276,7 +291,7 @@ export default function App() {
   };
   return <div className={`${native?`app native${compact?' compact':''}`:'app browser'}${data.settings.robot?'':' flat'}`}>
     {!native&&<><header className="page-header"><a className="brand" href="#"><span className="brand-symbol">◉</span> orbit<span className="version">EARLY BUILD 01</span></a><span className="header-caption">Your AI workspace, within reach.</span><button className="outline-button" onClick={()=>navigate('settings')}><SettingsIcon size={15}/> Preferences</button></header><aside className="intro"><div className="eyebrow"><span/> DESKTOP COMPANION</div><h1>A small robot. <br/>A doorway to <br/><em>all your work.</em></h1><p>Start a conversation, pick up a thread,<br/>or return to your next big idea.</p><div className="intro-rule"/><div className="principles"><span><ShieldCheck size={16}/> Your accounts. Your subscriptions.</span><span><Folder size={16}/> Chats and projects, together.</span><span><Command size={16}/> One shortcut away.</span></div><div className="preview-label"><span className="status-dot"/> Interactive browser preview <small>The floating companion runs in the desktop app.</small></div></aside></>}
-    <main className={`companion ${expanded?'expanded':'collapsed'}${expanded&&placement.above?' above':''}`} style={{'--shift':`${placement.shift}px`,'--pill-shift':`${placement.pill}px`} as CSSProperties}>
+    <main className={`companion ${expanded?'expanded':'collapsed'}${placement.above?' above':''}`} style={{'--shift':`${placement.shift}px`,'--pill-shift':`${placement.pill}px`} as CSSProperties}>
       <div className="robot-stage" data-tauri-drag-region><div className="robot-halo"/><button className="robot-button" aria-label={expanded?'Collapse companion':'Open companion'} title={native?`Click to open or close.${caps?.tray?' Double-click to hide in the tray.':''} Drag to move.`:undefined} onMouseDown={e=>{if(native&&e.button===0)drag.current={x:e.screenX,y:e.screenY,moved:false};}} onMouseMove={e=>{const d=drag.current;if(!d||d.moved||Math.abs(e.screenX-d.x)+Math.abs(e.screenY-d.y)<5)return;d.moved=true;void getCurrentWindow().startDragging();}} onClick={e=>{const d=drag.current;drag.current=null;if(d?.moved)return;const tray=native&&!!caps?.tray;window.clearTimeout(clickTimer.current);if(tray&&e.detail>1){void getCurrentWindow().hide();return;}if(expanded){setExpanded(false);return;}clickTimer.current=window.setTimeout(()=>setExpanded(true),tray?DOUBLE_CLICK_MS:0);}}>{data.settings.robot?<Suspense fallback={<span className="robot-glyph" aria-hidden="true">◉</span>}><Robot active={expanded}/></Suspense>:<span className="robot-glyph" aria-hidden="true">◉</span>}</button><span className="robot-caption"><span/> ORBIT / 360</span></div>
       <nav className={`pill ${expanded?'open':''}`} aria-label="Companion actions">{([['new','New chat',Plus],['find','Find',Search],['projects','Projects',Folder]] as const).map(([id,label,Icon])=><button key={id} aria-label={label} className={view===id&&expanded?'selected':''} onClick={()=>view===id&&expanded&&!project?setExpanded(false):navigate(id)}><Icon size={17}/><span>{label}</span></button>)}</nav>
       {expanded&&<section className="panel" onMouseDown={e=>{if(native&&e.button===0&&!(e.target as Element).closest('button,a,input,select,textarea,label,.result-row'))void getCurrentWindow().startDragging();}}>

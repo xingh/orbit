@@ -21,7 +21,7 @@ test('opens above near the bottom edge, with the robot still in place', () => {
 test('collapsing after opening above puts the window back on the robot', () => {
   const opened = place({ ...open, anchor: at(640, 500), area });
   const anchor = anchorOf({ ...opened, width: 330, height: 529, stage: 126 });
-  assert.deepEqual(place({ ...closed, anchor, area }), { x: 475, y: 500, above: false, shift: 0, height: 205 });
+  assert.deepEqual(place({ ...closed, anchor, area }), { x: 475, y: 421, above: true, shift: 0, height: 205 });
 });
 
 test('where neither side fits, the panel shrinks to the larger side and the robot stays put', () => {
@@ -39,10 +39,17 @@ test('the panel never shrinks below its minimum; then the robot gives way', () =
   assert.ok(p.y >= 0 && p.y + 430 <= 600);
 });
 
-test('closed near the Dock, the transparent margin may overlap it and the robot is not pushed up', () => {
+test('closed near the Dock, the pill moves above the robot and the robot is not pushed up', () => {
   const mac = { left: 0, top: 30, right: 1600, bottom: 1115 };
   const p = place({ width: 465, height: 270, stage: 185, expanded: false, reach: 70, anchor: at(792, 925), area: mac });
-  assert.equal(p.y, 925);
+  assert.equal(p.above, true);
+  assert.equal(p.y + 270 - 185, 925);
+});
+
+test('closed with room below, the pill stays under the robot', () => {
+  const p = place({ ...closed, anchor: at(640, 300), area });
+  assert.equal(p.above, false);
+  assert.equal(p.y, 300);
 });
 
 test('closed, the robot can sit closer to a side edge than the window is wide', () => {
