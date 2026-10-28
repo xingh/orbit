@@ -7,7 +7,7 @@ agent or the next machine. It exists so whoever picks this up knows what was act
 extracting_agent:
   model: Claude Opus 5 (1M context)
   host: Claude Code CLI
-  date: 2026-10-23
+  date: 2026-10-28 (earlier passes: 2026-10-19, 2026-10-23)
   working_directory: /home/anant/Projects/orbit
 
 capabilities_used:
@@ -16,14 +16,24 @@ capabilities_used:
   sqlite_via_python: read the live workspace and verified entry counts after each test
   gh_cli: read issues and the arkitype method repository
   xwd: captured the window as the user left it
+  marionette: >
+    drove the user's own Firefox profile headlessly to reinstall the extension and run the import
+    — see the import note under verification_status
 
 capabilities_missing:
-  - gap: no GUI automation
+  - gap: no GUI automation of the Tauri window
     compensation: >
       Clicking was declined on purpose — synthesising X11 input while the user is at the keyboard
       captured the wrong window once. Everything reachable only by clicking is marked unverified
       below rather than assumed.
     confidence_effect: interface behaviour in 04 is verified by build and unit test, not by use
+    no_longer_applies_to: >
+      The *extension* can be driven without touching the user's keyboard. Firefox runs headless on
+      the real profile with -marionette -remote-allow-system-access; the popup is opened as an
+      ordinary tab (moz-extension://{uuid}/popup.html), which has the same privileges as the
+      browser-action popup and does not vanish. Marionette refuses to navigate content to a
+      moz-extension URL, so the tab is opened from chrome context with the system principal. This
+      is how the 2026-10-28 import was run. The Tauri window still has no such route.
   - gap: no second browser engine, no headless Chrome/Chromium
     compensation: Firefox only, driven by the user
     affects: the extension under Chrome's service worker versus Firefox's event page
@@ -49,14 +59,25 @@ verification_status:
     - window sizing measured on a HiDPI display: 330x529 open, 20.0% of the work area
     - chat import against live accounts: 437 Claude + 618 ChatGPT conversations
     - workspace integrity after every test: 1081 entries, all probe data removed
+    - a full import on 2026-10-28, driven through the extension against both live accounts:
+      1081 -> 1135 entries, and 0 -> 817 of 1071 chats filed under a project (411 Claude of 448,
+      406 ChatGPT of 623), with no link pointing at a project that was not also imported
+    - the link-filling merge on real data: 5 added, 702 already saved, 404 filed on a second pass,
+      which is the re-link path running at scale rather than in a unit test
+    - Claude projects: array(43) -> 30 stored, archived_at confirmed present on the rows; 13
+      skipped on both runs, which settles issue 13
+    - ChatGPT projects: the cursor walk followed 7 pages to the end -> 34 stored, against 5 when
+      only the first page was read
+    - the multi-organization recovery in the wild: one organization answered 200 and the other 403,
+      for both the project and the chat list, and the import kept what answered
+    - the pairing token surviving a browser restart: the extension was reinstalled as a temporary
+      add-on and reported "Connected to Orbit" with no pairing step, because Firefox keeps the
+      extension's UUID, its granted origins and its storage.local against the extension id
   static_analysis_only:
-    - the two project list endpoints' exact shapes (ChatGPT's returned data; its cursor parameter
-      name is still a guess, and a wrong guess ends the walk safely rather than looping)
     - the in-page scripting.executeScript fallback, which has never run in a browser here
     - the Firefox host-permission prompt
     - Pair a browser as clicked from the UI — the logic is unit-tested, the button is not
     - the project detail view, its Open project button, and the 3D robot toggle as rendered
-    - 21 of 34 Claude projects importing; the other 13 carried an archive flag, unconfirmed
   not_implemented:
     - Grok has no import scanner
     - full conversation-history search, local coding-session enumeration

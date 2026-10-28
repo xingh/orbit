@@ -1,9 +1,9 @@
 ---
 issue: 13
 title: Confirm why 21 of 34 Claude projects import
-state: open
+state: done
 opened: 2026-10-23
-closed:
+closed: 2026-10-28
 github: https://github.com/xingh/orbit/issues/13
 owner: file
 arkitype: [03]
@@ -34,3 +34,16 @@ touching anyone's account.
 Either the archive fields are confirmed present — in which case record it in
 `.knowledge/provider.web.endpoints.md` and close this — or the skip condition is corrected and all
 34 arrive.
+
+## Settled — 2026-10-28
+
+The archive fields are real. The trace of a full import names the Claude project row's fields, and
+they include **`archived_at`**, next to an **`archiver`** field. So the scanner's skip condition was
+matching something that exists, not silently dropping 13 live projects.
+
+Corroborated by the counts either side of nine new projects: 34 rows -> 21 stored in October, and
+43 rows -> 30 stored on 2026-10-28. Thirteen skipped both times, so every project added in between
+was unarchived.
+
+Recorded in `.knowledge/provider.web.endpoints.md` under `projects.settled`, which is where the
+next person will look. No code changed; the guess it was built on is now an observation.

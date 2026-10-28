@@ -25,19 +25,30 @@ chats:
   status: observed
   shape: a bare JSON array per page
   observed_run: offset 0,100,200,300,400 -> 100,100,100,100,37 = 437 conversations
+  observed_run_2: 2026-10-28, offset 0..400 -> 100,100,100,100,47 = 447 conversations
+  caveat: >
+    The rows are not all the same shape. Some pages arrive with the keys in insertion order
+    (uuid, name, summary, ...) and others alphabetically, carrying extra ones
+    (current_leaf_message_uuid, platform, project). The import report prints only a row's first
+    14 keys, so on an alphabetical page "uuid" sorts last and falls off the end, and the row
+    reads as though it has no id. It has one. Do not take a short key list for a missing field.
   link: https://claude.ai/chat/{uuid}
 projects:
   path: /api/organizations/{org_uuid}/projects?limit=100&offset=0
   status: observed
-  shape: array(34) on the live account
-  caveat: >
-    34 rows arrived, 21 imported. The other 13 carried an archive flag and were skipped. Which
-    field (archived_at vs is_archived) is unconfirmed; the import report now names row field
-    names, so the next run settles it. Tracked in .manage/issue.0013.claude-projects-count.md
+  shape: array(34) on 2026-10-19, array(43) on 2026-10-28
+  settled: >
+    The rows do carry archived_at, next to an archiver field — read off the trace of the
+    2026-10-28 run. 13 rows were skipped on both runs (34 -> 21, then 43 -> 30), so the nine
+    projects added in between were all unarchived. The archive guess was right; issue 13 closed.
   link: https://claude.ai/project/{uuid}
 project_link_on_a_chat:
   fields_tried: [project_uuid, project_id, project.uuid, project.id]
-  status: guess
+  status: observed
+  note: >
+    Chat rows carry project_uuid; an alphabetical page carries project as well. 411 of 448 Claude
+    chats were filed under a project on 2026-10-28, and no link pointed at a project that had not
+    also been imported.
 ```
 
 ## ChatGPT (`chatgpt.com`)
@@ -53,6 +64,7 @@ chats:
   shape: { items, total, limit, offset }
   note: limit is capped at 100. 429 is a real risk on a large account; pace the walk.
   observed_run: 7 pages -> 618 conversations
+  observed_run_2: 2026-10-28, offset 0..600 -> 623 conversations
   link: https://chatgpt.com/c/{id}
 projects:
   path: /backend-api/gizmos/snorlax/sidebar
@@ -61,13 +73,19 @@ projects:
   shape: { items, cursor }
   note: >
     CURSOR-PAGED, not offset-paged. Calling it once is why an early import found exactly 5
-    projects and stopped. The cursor parameter name is still a guess; if wrong, the walk ends
-    safely on a repeated page rather than looping.
+    projects and stopped.
+  observed_run: >
+    2026-10-28: ?cursor={opaque} walked 7 pages to the end and stored 34 projects, against 5 when
+    only the first page was read. The parameter name is confirmed by the walk itself — every page
+    came back with a different cursor and the last came back without one.
   accepts_only: ids beginning "g-p-" — a custom GPT is not a project
 project_link_on_a_chat:
   fields_tried: [gizmo_id, conversation_origin.gizmo_id, conversation_origin.id]
-  status: guess
+  status: observed
   rule: only counts when the value starts "g-p-"
+  note: >
+    Conversation rows carry gizmo_id. 406 of 623 ChatGPT chats were filed under a project on
+    2026-10-28.
 ```
 
 ## Grok

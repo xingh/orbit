@@ -96,15 +96,32 @@ Found while testing the link work, by posting four batches back to back the way 
   captured when it was queued. Three tests cover keeping an unseen entry, not resurrecting a
   deleted one, and inventing nothing from empty or unreadable storage.
 
+### Project links, on real data (October 28, 2026)
+
+The extension was reinstalled into the user's own Firefox profile and the import re-run, driven
+headlessly over Marionette. Read out of Orbit's SQLite and the extension's import trace afterwards:
+
+- **Every chat that has a project now has one.** The workspace went from 1081 entries with **0**
+  project links to 1135 entries with **817** of 1071 chats filed — 411 of 448 Claude chats and 406
+  of 623 ChatGPT chats. No link pointed at a project that had not also been imported.
+- The import reported `added 5, already saved 702, filed 404`, with no problems. That is the
+  link-filling merge doing on real data what the unit tests cover: an entry already saved gains the
+  project it lacked, and nothing else about it moves.
+- **Claude projects:** 43 rows returned, 30 stored. The rows do carry `archived_at` (beside
+  `archiver`), and 13 were skipped on this run and the last, which settles the open question of why
+  21 of 34 arrived in October.
+- **ChatGPT projects:** the cursor walk followed 7 pages to the end and stored 34, against 5 when
+  only the first page was read.
+- **The multi-organization recovery, in the wild:** one organization answered 200 and the other 403
+  for both the project and the chat list; the import kept what answered.
+- The pairing token survived the browser restart, so no re-pairing was needed: Firefox keeps an
+  extension's UUID, its granted origins and its `storage.local` against the extension id, even for
+  a temporary add-on.
+
 ## Not verified
 
 - Windows and macOS: the tray, global shortcut, transparent window, folder picker, terminal launching and the companion service were exercised on Linux only. Rust now compiles and its tests pass in this environment.
 - Actual provider account/subscription authentication, usage entitlements, and billing. Orbit opens official surfaces; the user signs in there.
-- The two **project** list endpoints against a live account. `claude.ai/api/organizations/{org}/projects`
-  follows the pattern of the chat-list endpoint on the same host, and ChatGPT projects have no
-  public documentation at all, so the gizmo sidebar path is tried and only `g-p-` ids are accepted.
-  Both are unverified guesses at a shape; a failure is reported per list with a request-by-request
-  report, and neither can affect the chat import.
 - The in-page fallback (`scripting.executeScript` inside a provider tab) has not run in a browser
   here. It is the second attempt only: the direct fetch, which is the path that imported 616
   ChatGPT chats, still runs first.
