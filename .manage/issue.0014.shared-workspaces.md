@@ -108,3 +108,7 @@ propagates as a tombstone; and revoking a member's access actually stops them re
 
 Stretch (same issue or a child when syncing): shared Find returns another member's visible entry;
 an access request for a hidden project is approved and the next search includes it.
+
+Document/file inventory from the SaaS spider (`issue.draft.saas-spider-sync.md`) uses the same
+membership and access-request rules once a team cloud copy exists — still names/metadata in the
+shared index, bytes in the chosen sync store.

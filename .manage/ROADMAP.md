@@ -59,6 +59,9 @@ Independent of all the above, and small:
       sync into Find, prime (#11), shared workspaces (#14), and export issues when ready.
 - [ ] `issue.draft.orbit-index-mcp.md` — local bot API + MCP over the **index**; same surface
       centrally for multi-user search and access requests (depends on #7 / #14).
+- [ ] `issue.draft.saas-spider-sync.md` — MCP↔disk file sync first, then document
+      names/metadata via computer-use (tekt.observer-style) or purpose-built shadow-DB
+      connectors; local copy and/or team cloud copy.
 
 ## Not planned, deliberately
 
