@@ -57,6 +57,8 @@ Independent of all the above, and small:
 - [ ] `issue.draft.shared-memory-competitor-steals.md` — index-side UX stolen from
       Memocore / HeyBrain / SharedMemory / Memava / GBrain. Not an MCP memory product;
       sync into Find, prime (#11), shared workspaces (#14), and export issues when ready.
+- [ ] `issue.draft.orbit-index-mcp.md` — local bot API + MCP over the **index**; same surface
+      centrally for multi-user search and access requests (depends on #7 / #14).
 
 ## Not planned, deliberately
 
