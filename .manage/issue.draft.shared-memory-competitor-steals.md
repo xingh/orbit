@@ -32,7 +32,7 @@ Split later into numbered issues when syncing. Each maps to an existing roadmap 
 
 ### A. Cross-provider continuity (Memocore / GBrain / HeyBrain)
 
-1. **Same work, both providers.** Surface Claude + ChatGPT entries that share a project (or a user-chosen link) as one "work thread" in Find — still two links, one card. Rules out merging transcripts.
+1. **Same work, both providers.** Surface Claude + ChatGPT entries that share a project (or a user-chosen link) as one "work thread" in Find — still two links, one card. Rules out merging transcripts. Project-level shelves (`.inbox` across agents) are `issue.draft.virtual-projects-by-name.md`.
 2. **Continue in the other provider.** From a saved chat, open the *other* provider's new chat with the composer primed from the **Orbit note / project blurb** (issue 11), never from message bodies.
 3. **Correct the index once.** Rename, re-project, or annotate locally; every view and (later) shared workspace sees it. Upstream title refresh stays issue 8.
 

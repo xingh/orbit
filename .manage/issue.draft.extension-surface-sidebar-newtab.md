@@ -79,7 +79,8 @@ side_panel:
 ## Suggested issue split when syncing
 
 1. Keep #10 as popup Find + start chat (provider chats/projects only).
-2. File `extension-new-tab-find` — optional newtab; frequent/recent/projects; depends on #7/#10.
+2. File `extension-new-tab-find` — optional newtab; frequent/recent/projects (including virtual
+   shelves from `issue.draft.virtual-projects-by-name.md`); depends on #7/#10.
 3. File `extension-provider-sidepanel` — optional; provider hosts only; after new tab.
 
 ## Done when
