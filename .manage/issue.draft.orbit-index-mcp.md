@@ -75,6 +75,12 @@ Central MCP is authenticated per user against the shared server.
 - Binding the desktop companion's pair-token service to LAN/WAN (principle 4 / issue 14).
 - Agents submitting prompts through Orbit (principle 5). `open_or_prime` prepares only.
 
+## Related
+
+SaaS file/document sync (MCP ↔ disk, computer-use spider, shadow DB) is a separate draft:
+`issue.draft.saas-spider-sync.md`. Index MCP may later expose shadow inventory the same way it
+exposes chat entries; it does not own the spider.
+
 ## Done when
 
 - Locally: an MCP client can search the user's Orbit index and receive titles/links/notes; a save
