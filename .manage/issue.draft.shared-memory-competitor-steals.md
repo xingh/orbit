@@ -71,7 +71,9 @@ Split later into numbered issues when syncing. Each maps to an existing roadmap 
 
 ## Ruled out (do not file as Orbit features)
 
-- MCP memory server, cloud memo injection, or any path that feeds chat/document bodies into a model through Orbit.
+- MCP **memory vault** / cloud memo injection that feeds chat or document bodies into a model
+  through Orbit. A separate draft covers MCP over the **index only** (search titles/links/notes
+  for local bots, then central multi-user): `issue.draft.orbit-index-mcp.md`.
 - API keys, BYO model keys, or Orbit calling inference (principle 1).
 - Storing or searching message content, attachments, or provider "memory" dumps (principle 2).
 - Becoming Konotree/tekt: RAG, Drive/Notion connectors, knowledge graphs over file contents.
@@ -83,9 +85,10 @@ Split later into numbered issues when syncing. Each maps to an existing roadmap 
 | Steal # | Likely GitHub issue neighbour |
 | --- | --- |
 | 1–3, 7–8, 15 | Find UX + issue 11 (prime) |
-| 4–6, 11–13, 17 | issue 14 (shared workspaces) |
+| 4–6, 11–13, 17 | issue 14 (shared workspaces + shared thread search / access requests) |
 | 9–10, 16, 18 | storage/API after issue 6–7 |
 | 14 | small independent export issue |
+| bot/MCP index | `issue.draft.orbit-index-mcp.md` (local then central) |
 
 ## Done when
 
