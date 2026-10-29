@@ -65,6 +65,8 @@ Independent of all the above, and small:
 - [ ] `issue.draft.extension-surface-sidebar-newtab.md` — order chats/projects in tools you
       already use: popup Find (#10) → optional new-tab search + frequent chats → provider-only
       side panel later. Sticky notes on links = Linkwarden in Konotree, not Orbit.
+- [ ] `issue.draft.virtual-projects-by-name.md` — virtual shelves by shared name (`.inbox`,
+      `rd/…`) across Claude/ChatGPT/etc.; organizer skill aligns naming, Orbit unions the index.
 
 ## Not planned, deliberately
 
