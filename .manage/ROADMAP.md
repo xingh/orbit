@@ -62,9 +62,9 @@ Independent of all the above, and small:
 - [ ] `issue.draft.saas-spider-sync.md` — MCP↔disk file sync first, then document
       names/metadata via computer-use (tekt.observer-style) or purpose-built shadow-DB
       connectors; local copy and/or team cloud copy.
-- [ ] `issue.draft.extension-surface-sidebar-newtab.md` — after Humble review: ship popup
-      Find (#10) first; optional new-tab Orbit search + frequent chats second; provider-only
-      side panel later (not every-page CRM).
+- [ ] `issue.draft.extension-surface-sidebar-newtab.md` — order chats/projects in tools you
+      already use: popup Find (#10) → optional new-tab search + frequent chats → provider-only
+      side panel later. Sticky notes on links = Linkwarden in Konotree, not Orbit.
 
 ## Not planned, deliberately
 
