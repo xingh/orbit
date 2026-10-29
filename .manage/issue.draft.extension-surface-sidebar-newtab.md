@@ -1,6 +1,6 @@
 ---
 issue: draft
-title: Extension surface — Humble-style sidebar vs Orbit new-tab Find
+title: Extension surface — new-tab Find for chats/projects (not sticky notes on links)
 state: open
 opened: 2026-10-29
 closed:
@@ -10,92 +10,79 @@ arkitype: [03, 04]
 prerequisites: [issue.0007.workspace-api.md, issue.0010.extension-search.md]
 ---
 
-# Extension surface after Humble: sidebar, new tab, or both?
+# Extension surface: bring order to chats and projects you already use
 
-## What Humble does (reviewed)
+## Audience (locked)
 
-Humble's browser product is a **sidebar beside every page** ([humbleai.com/browser](https://humbleai.com/browser/)):
+Orbit is for people who need **order over chats and projects inside the AI tools they already
+pay for** (Claude, ChatGPT, Grok, and later code tools). Save, find, file under projects, open
+again — titles and links only.
 
-- Sticky notes / tasks linked to the current URL (LinkedIn, Gmail, docs, AI chats).
-- Icon goes green when the page already has related Humble items.
-- Same gesture to link a ChatGPT/Claude/Gemini chat to a *task or person* — stores a **link**, not the transcript.
-- Find scoped to this page, this site, or everything.
-- Value prop is CRM/work context everywhere; AI chat linking is one use case among many.
+**Not** sticky notes on arbitrary links. That job is **Linkwarden inside a Konotree config**. Do
+not recreate it in the Orbit extension, sidebar, or new tab.
 
-Orbit's extension today is a **toolbar popup**: pair, save this chat, import titles/links. Find lives in the desktop companion. Issue 10 already asks for search/start in the popup once a read route exists (#7).
+Humble's browser product ([humbleai.com/browser](https://humbleai.com/browser/)) was reviewed as a
+contrast: sidebar beside every page for notes/tasks/CRM, with AI-chat linking as one use case.
+Useful reference for "link not body"; wrong product shape for Orbit.
 
 ## Recommendation
 
 | Surface | Verdict | Why |
 | --- | --- | --- |
-| **Popup Find (#10)** | **Ship first** | Same place people already save; smallest read-API consumer; no new chrome permission story. |
-| **Optional new-tab Orbit home** | **Yes — second** | Best fit for "search across your orbit + most frequent chats." A blank tab is an intentional find moment; Humble does not own this. |
-| **Side panel (Humble-like)** | **Later, provider-scoped** | Useful on Claude/ChatGPT/Grok for "related to this chat / save / project siblings." Do **not** become a every-page notes/CRM sidebar — that is Humble/Konotree territory and fights the floating companion. |
+| **Popup Find (#10)** | **Ship first** | Same place people already save a chat; smallest read-API consumer. |
+| **Optional new-tab Orbit home** | **Yes — second** | Search across your orbit + most frequent / recent / pinned chats and projects. Blank tab = "bring order" moment without sitting on a provider page. |
+| **Side panel** | **Later, provider-only** | On Claude/ChatGPT/Grok: save this chat, project siblings, jump to Find. Never a web-wide notes rail. |
 
-### Why new tab beats copying Humble's sidebar for Orbit
+### Why new tab fits this audience
 
-1. Orbit's primary object is the **index of chats/projects**, not notes-on-arbitrary-URLs. New tab = search the index. Sidebar-on-every-page = sticky context for the open URL — Humble's product.
-2. Frequent / recent / pinned chats need **horizontal room** (dense list like Find in 04-interface). A new tab can match desktop density; a narrow side panel fights it.
-3. New tab works even when you are not already on a provider page — the moment you are hunting "where was that thread."
-4. Desktop companion stays the always-on robot; new tab is the browser-native Find. Two surfaces, one read API.
+1. The object is the **chat/project index**, not bookmarks-with-notes (Linkwarden/Konotree).
+2. Frequent and project-filed threads need dense list room — new tab matches Find in 04-interface.
+3. Works when you are hunting a thread and are not already inside a provider tab.
+4. Desktop companion stays the always-on robot; new tab is browser-native Find over the same index.
 
-### What the new tab should show (v1)
+### New tab v1
 
 ```yaml
 new_tab:
-  optional: true          # preference; do not force-replace without an off switch
-  when_orbit_up:
-    - search box → workspace-api query (issue 10 shape)
-    - most frequent chats (open/save count or recency-weighted)
-    - recent + pinned
+  purpose: order and reopen chats/projects you already use
+  optional: true
+  shows:
+    - search → workspace-api (issue 10 shape)
+    - most frequent chats (open/save signal after #6; until then recent + pinned)
+    - projects and chats filed under them
     - provider filter
-    - one click opens the provider URL in this browser
-    - new chat shortcuts (providers.js URLs)
-  when_orbit_down:
-    - loud status (principle 6)
-    - last cached frequent/recent titles+links if we choose to cache; never message bodies
+    - open provider URL / new chat shortcuts
+  when_orbit_down: loud status (principle 6); optional cached titles+links only
   never:
-    - message content, embeddings, or a second cloud account
+    - sticky notes on arbitrary URLs
+    - Linkwarden-style bookmark collections
+    - message bodies, embeddings, a second cloud account for notes
 ```
 
-"Most frequent" needs a cheap local signal after #6 (open events and/or save bumps). Until then, **recent + pinned** is enough and still useful.
-
-### What a later side panel should be (not Humble)
+### Provider side panel later (still not Linkwarden)
 
 ```yaml
 side_panel:
-  hosts: [claude.ai, chatgpt.com, grok.com]   # not the whole web
-  shows:
-    - save / update this chat (today's popup job)
-    - project siblings and related index hits for this URL
-    - jump to new-tab Find or desktop Find
-  does_not:
-    - notes on LinkedIn/Gmail/CRM
-    - green-badge for arbitrary sites
-    - task/person graph
+  hosts: [claude.ai, chatgpt.com, grok.com]
+  shows: [save this chat, project siblings, open Find]
+  does_not: [notes on any URL, green-badge for the open web, task/person graphs]
 ```
-
-Chrome `sidePanel` API is fine for MV3; keep Firefox path as popup + new tab if side panel support lags.
-
-## Steal from Humble (shape only)
-
-- **Link, don't copy chat bodies** — already Orbit principle 2; keep saying it in the UI.
-- **Affordance when this page is already known** — badge or status on provider tabs when the URL is in the index (after read API). Do not require a full sidebar for that.
-- **Same gesture everywhere you care about** — for Orbit that is provider pages + new tab + popup, not the entire web.
 
 ## Ruled out
 
-- Replacing the desktop companion with a sidebar-only product.
-- Humble-style every-page notes/tasks/CRM in the Orbit extension.
-- Shipping side panel or new tab **before** workspace-api read (#7) and popup Find (#10).
-- A mandatory new-tab takeover with no disable.
+- Sticky notes / annotations on links — **Linkwarden + Konotree**, not Orbit.
+- Humble-style every-page sidebar for CRM or general web context.
+- Replacing the desktop companion with extension-only UX.
+- Shipping new tab or side panel before workspace-api read (#7) and popup Find (#10).
+- Mandatory new-tab takeover with no disable.
 
 ## Suggested issue split when syncing
 
-1. Keep #10 as popup Find + start chat.
-2. File `extension-new-tab-find` — optional chrome_url_overrides newtab; frequent/recent; depends on #7/#10.
-3. File `extension-provider-sidepanel` — optional; provider hosts only; after new tab proves the read UX.
+1. Keep #10 as popup Find + start chat (provider chats/projects only).
+2. File `extension-new-tab-find` — optional newtab; frequent/recent/projects; depends on #7/#10.
+3. File `extension-provider-sidepanel` — optional; provider hosts only; after new tab.
 
 ## Done when
 
-This draft is accepted or amended in ROADMAP, and the chosen surfaces are filed as issues (or explicitly declined). Until sync, treat popup Find → optional new tab → provider side panel as the order of attack.
+Positioning above is reflected in filed issues (or declined surfaces). Popup Find → optional new
+tab → provider side panel remains the order of attack.
