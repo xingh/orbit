@@ -52,9 +52,17 @@ Independent of all the above, and small:
 - [ ] Signed installers, so there is no first-launch warning
 - [ ] Optional Grok integration beyond opening the website (no list endpoint is known)
 
+## Intake (split / sync later)
+
+- [ ] `issue.draft.shared-memory-competitor-steals.md` — index-side UX stolen from
+      Memocore / HeyBrain / SharedMemory / Memava / GBrain. Not an MCP memory product;
+      sync into Find, prime (#11), shared workspaces (#14), and export issues when ready.
+
 ## Not planned, deliberately
 
 - Message content, ever. The index holds titles, links and the user's own notes —
   `.knowledge/orbit.principles.md`, principle 2.
 - API keys, ever. Principle 1.
 - Submitting a prompt on the user's behalf. Principle 5.
+- Becoming a shared-memory / RAG vault for ChatGPT and Claude (Konotree's lane). See the
+  draft above for what was reviewed and ruled out.
