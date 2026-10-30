@@ -52,9 +52,27 @@ Independent of all the above, and small:
 - [ ] Signed installers, so there is no first-launch warning
 - [ ] Optional Grok integration beyond opening the website (no list endpoint is known)
 
+## Intake (split / sync later)
+
+- [ ] `issue.draft.shared-memory-competitor-steals.md` — index-side UX stolen from
+      Memocore / HeyBrain / SharedMemory / Memava / GBrain. Not an MCP memory product;
+      sync into Find, prime (#11), shared workspaces (#14), and export issues when ready.
+- [ ] `issue.draft.orbit-index-mcp.md` — local bot API + MCP over the **index**; same surface
+      centrally for multi-user search and access requests (depends on #7 / #14).
+- [ ] `issue.draft.saas-spider-sync.md` — MCP↔disk file sync first, then document
+      names/metadata via computer-use (tekt.observer-style) or purpose-built shadow-DB
+      connectors; local copy and/or team cloud copy.
+- [ ] `issue.draft.extension-surface-sidebar-newtab.md` — order chats/projects in tools you
+      already use: popup Find (#10) → optional new-tab search + frequent chats → provider-only
+      side panel later. Sticky notes on links = Linkwarden in Konotree, not Orbit.
+- [ ] `issue.draft.virtual-projects-by-name.md` — virtual shelves by shared name (`.inbox`,
+      `rd/…`) across Claude/ChatGPT/etc.; organizer skill aligns naming, Orbit unions the index.
+
 ## Not planned, deliberately
 
 - Message content, ever. The index holds titles, links and the user's own notes —
   `.knowledge/orbit.principles.md`, principle 2.
 - API keys, ever. Principle 1.
 - Submitting a prompt on the user's behalf. Principle 5.
+- Becoming a shared-memory / RAG vault for ChatGPT and Claude (Konotree's lane). See the
+  draft above for what was reviewed and ruled out.
