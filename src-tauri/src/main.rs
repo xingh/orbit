@@ -431,7 +431,24 @@ fn build_tray(app: &tauri::App) -> tauri::Result<()> {
                     show_view(app, view);
                 }
             }
+        })
+        // Windows and macOS report icon clicks; a Linux AppIndicator tray reports none, so there the
+        // menu's Open Orbit stays the way in.
+        .on_tray_icon_event(|tray, event| {
+            if let tauri::tray::TrayIconEvent::DoubleClick {
+                button: tauri::tray::MouseButton::Left,
+                ..
+            } = event
+            {
+                reveal(tray.app_handle());
+            }
         });
+    // A menu opened by the first click swallows the second, and Windows tray menus belong on the
+    // right button anyway. macOS keeps its menu-on-click convention, so it has no double-click.
+    #[cfg(windows)]
+    {
+        tray = tray.show_menu_on_left_click(false);
+    }
     if let Some(icon) = app.default_window_icon() {
         tray = tray.icon(icon.clone());
     }

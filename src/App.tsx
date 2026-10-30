@@ -1,9 +1,10 @@
-import { lazy, Suspense, useEffect, useRef, useState, type FormEvent } from 'react';
+import { lazy, Suspense, useEffect, useRef, useState, type CSSProperties, type FormEvent } from 'react';
 import { Search, Plus, Folder, ArrowUpRight, Pin, Trash2, X, Settings as SettingsIcon, Download, Upload, Command, ChevronRight, MessageSquare, ShieldCheck, Minimize2, Terminal, ArrowLeft } from 'lucide-react';
 import { invoke, isTauri } from '@tauri-apps/api/core';
 import { currentMonitor, getCurrentWindow, LogicalPosition, LogicalSize } from '@tauri-apps/api/window';
 import { listen } from '@tauri-apps/api/event';
 import { providers, searchItems, validateChatUrl } from './providers.mjs';
+import { anchorOf, place } from './placement.mjs';
 import { loadData, saveData, openDestination, emptyData, sanitizeData, type Data } from './storage';
 import type { Item } from './types';
 
@@ -17,6 +18,14 @@ const blank = { title: '', provider: 'claude', url: '', folder: '', note: '', pr
 const DESIGN = { width: 510, height: 820, collapsed: 270 };
 /** Share of the monitor's work area the open companion may occupy. */
 const FOOTPRINT = 0.2;
+// Half the pill with its labels showing: it follows the robot sideways only as far as it still fits.
+const PILL_HALF = { normal: 165, tight: 150 };
+// Long enough to tell a double-click from a click; only a collapsed robot waits this long.
+const DOUBLE_CLICK_MS = 220;
+// The drawn robot is about this fraction of its stage's width, so this much of the stage may pass the window's edge.
+const ROBOT_REACH = 0.3;
+// The native window's vertical padding (.native in styles.css), between its edge and the robot's stage.
+const WINDOW_PAD = 8;
 const MIN = { width: 330, height: 430 };
 /** Below this width the panel switches to its tighter layout. */
 const COMPACT_WIDTH = 430;
@@ -43,6 +52,10 @@ export default function App() {
   const [query,setQuery]=useState('');
   const [filter,setFilter]=useState('all');
   const [expanded,setExpanded]=useState(false);
+  const [settle,setSettle]=useState(0);
+  const expandedRef=useRef(expanded);expandedRef.current=expanded;
+  const [placement,setPlacement]=useState({above:false,shift:0,pill:0});
+  const placed=useRef({above:false,shift:0}),clickTimer=useRef<number|undefined>(undefined),home=useRef<{x:number;y:number;shift:number;above:boolean;opened:{x:number;y:number}}|null>(null),lastSet=useRef<{x:number;y:number}|null>(null);
   const [modal,setModal]=useState<'chat'|'project'|null>(null);
   const [draft,setDraft]=useState(blank);
   const [error,setError]=useState('');
@@ -100,7 +113,7 @@ export default function App() {
   useEffect(()=>{if(native)void invoke<typeof caps>('capabilities').then(setCaps).catch(()=>{});},[]);
   useEffect(()=>{
     const key=(e:KeyboardEvent)=>{
-      if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='k'){e.preventDefault();setExpanded(true);setView('find');setTimeout(()=>searchRef.current?.focus(),30);}
+      if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='k'){e.preventDefault();setExpanded(true);setView('find');setTimeout(()=>searchRef.current?.focus({preventScroll:true}),30);}
       if(e.key==='Escape'){if(modal)setModal(null);else if(remove)setRemove(null);else if(project)setProject(null);else setExpanded(false);}
     }; window.addEventListener('keydown',key); return()=>window.removeEventListener('keydown',key);
   },[modal,remove,project]);
@@ -109,6 +122,9 @@ export default function App() {
     void (async()=>{
       const w=getCurrentWindow();
       try{
+        // A window opened taller than the screen is maximised by KWin and others, and a maximised
+        // window ignores every setSize after it. Start collapsed (tauri.conf.json), and undo it anyway.
+        if(await w.isMaximized())await w.unmaximize();
         const m=await currentMonitor();
         const s=m?.scaleFactor??1;
         const area=m?{width:m.workArea.size.width/s,height:m.workArea.size.height/s}:null;
@@ -123,18 +139,50 @@ export default function App() {
         const stage=tight?STAGE.tight:STAGE.normal;
         const relief=data.settings.robot?0:stage-STAGE.flat;
         const height=(expanded?open:(tight?205:DESIGN.collapsed))-relief;
-        await w.setSize(new LogicalSize(width,height));
-        if(!m||!area)return;
-        const p=(await w.outerPosition()).toLogical(s),a=m.workArea;
-        const left=a.position.x/s,top=a.position.y/s,right=left+area.width,bottom=top+area.height;
-        const x=Math.max(left,Math.min(p.x,right-width)),y=Math.max(top,Math.min(p.y,bottom-height));
-        if(Math.abs(x-p.x)>1||Math.abs(y-p.y)>1)await w.setPosition(new LogicalPosition(x,y));
+        const before=(await w.outerSize()).toLogical(s),p=(await w.outerPosition()).toLogical(s);
+        if(!m||!area){await w.setSize(new LogicalSize(width,height));return;}
+        const a=m.workArea,left=a.position.x/s,top=a.position.y/s;
+        const stageHeight=stage-relief;
+        const reach=(document.querySelector<HTMLElement>('.robot-button')?.offsetWidth??width)*ROBOT_REACH;
+        // Anchored on the robot rather than the window, so opening and closing never moves it: the
+        // panel opens below or above, and the robot slides sideways instead of off a screen edge.
+        const anchor=anchorOf({x:p.x,y:p.y,width:before.width,height:before.height,stage:stageHeight,pad:WINDOW_PAD,...placed.current});
+        // Closing returns to exactly where the robot was put, unless the window was dragged while open.
+        const back=!expanded&&home.current&&Math.abs(p.x-home.current.opened.x)<2&&Math.abs(p.y-home.current.opened.y)<2?home.current:null;
+        const next=back?{x:back.x,y:back.y,above:back.above,shift:back.shift,height}:place({anchor,pad:WINDOW_PAD,width,height,minHeight:Math.min(height,MIN.height-relief),stage:stageHeight,expanded,area:{left,top,right:left+area.width,bottom:top+area.height},reach});
+        if(!expanded)home.current=null;
+        else if(home.current)home.current.opened={x:next.x,y:next.y};
+        else home.current={x:p.x,y:p.y,shift:placed.current.shift,above:placed.current.above,opened:{x:next.x,y:next.y}};
+        const limit=Math.max(0,width/2-(tight?PILL_HALF.tight:PILL_HALF.normal));
+        placed.current={above:next.above,shift:next.shift};
+        setPlacement({...placed.current,pill:Math.max(-limit,Math.min(next.shift,limit))});
+        // The window manager keeps a window inside the screen by the size it last saw, so a window that
+        // is still tall when moved low gets pushed back up: shrink, wait for the size to land, then move.
+        lastSet.current={x:next.x,y:next.y};
+        if(next.height<before.height){
+          await w.setSize(new LogicalSize(width,next.height));
+          for(let i=0;i<15&&Math.abs((await w.outerSize()).toLogical(s).height-next.height)>1;i++)await new Promise(r=>setTimeout(r,16));
+          await w.setPosition(new LogicalPosition(next.x,next.y));
+        }
+        else{await w.setPosition(new LogicalPosition(next.x,next.y));await w.setSize(new LogicalSize(width,next.height));}
       }catch{setNotice('Could not resize the companion.');}
     })();
-  },[expanded,data.settings.robot]);
+  },[expanded,data.settings.robot,settle]);
   useEffect(()=>{
     if(!native)return;
-    const subscription=listen('open-launcher',()=>{setExpanded(true);setView('find');setTimeout(()=>searchRef.current?.focus(),60);});
+    // After the user drags a closed robot, re-check whether its pill still fits below it. Moves this
+    // component made itself are ignored, so placing the window never feeds back into another pass.
+    let timer:number|undefined;
+    const moved=getCurrentWindow().onMoved(({payload})=>{window.clearTimeout(timer);timer=window.setTimeout(async()=>{
+      if(expandedRef.current)return;
+      const q=payload.toLogical(await getCurrentWindow().scaleFactor()),l=lastSet.current;
+      if(!l||Math.abs(q.x-l.x)>=2||Math.abs(q.y-l.y)>=2)setSettle(n=>n+1);
+    },250);});
+    return()=>{window.clearTimeout(timer);void moved.then(stop=>stop());};
+  },[]);
+  useEffect(()=>{
+    if(!native)return;
+    const subscription=listen('open-launcher',()=>{setExpanded(true);setView('find');setTimeout(()=>searchRef.current?.focus({preventScroll:true}),60);});
     return()=>{void subscription.then(unlisten=>unlisten());};
   },[]);
   useEffect(()=>{
@@ -149,7 +197,7 @@ export default function App() {
     const subscription=listen<View>('open-view',event=>{
       if(!['new','find','projects','settings'].includes(event.payload))return;
       setExpanded(true);setView(event.payload);setProject(null);setQuery('');setFilter('all');
-      if(event.payload==='find')setTimeout(()=>searchRef.current?.focus(),60);
+      if(event.payload==='find')setTimeout(()=>searchRef.current?.focus({preventScroll:true}),60);
       if(event.payload==='settings')refreshService();
     });
     return()=>{void subscription.then(unlisten=>unlisten());};
@@ -245,8 +293,8 @@ export default function App() {
   };
   return <div className={`${native?`app native${compact?' compact':''}`:'app browser'}${data.settings.robot?'':' flat'}`}>
     {!native&&<><header className="page-header"><a className="brand" href="#"><span className="brand-symbol">◉</span> orbit<span className="version">EARLY BUILD 01</span></a><span className="header-caption">Your AI workspace, within reach.</span><button className="outline-button" onClick={()=>navigate('settings')}><SettingsIcon size={15}/> Preferences</button></header><aside className="intro"><div className="eyebrow"><span/> DESKTOP COMPANION</div><h1>A small robot. <br/>A doorway to <br/><em>all your work.</em></h1><p>Start a conversation, pick up a thread,<br/>or return to your next big idea.</p><div className="intro-rule"/><div className="principles"><span><ShieldCheck size={16}/> Your accounts. Your subscriptions.</span><span><Folder size={16}/> Chats and projects, together.</span><span><Command size={16}/> One shortcut away.</span></div><div className="preview-label"><span className="status-dot"/> Interactive browser preview <small>The floating companion runs in the desktop app.</small></div></aside></>}
-    <main className={`companion ${expanded?'expanded':'collapsed'}`}>
-      <div className="robot-stage" data-tauri-drag-region><div className="robot-halo"/><button className="robot-button" aria-label={expanded?'Collapse companion':'Open companion'} title={native?'Click to open or close. Drag to move.':undefined} onMouseDown={e=>{if(native&&e.button===0)drag.current={x:e.screenX,y:e.screenY,moved:false};}} onMouseMove={e=>{const d=drag.current;if(!d||d.moved||Math.abs(e.screenX-d.x)+Math.abs(e.screenY-d.y)<5)return;d.moved=true;void getCurrentWindow().startDragging();}} onClick={()=>{const d=drag.current;drag.current=null;if(!d?.moved)setExpanded(!expanded);}}>{data.settings.robot?<Suspense fallback={<span className="robot-glyph" aria-hidden="true">◉</span>}><Robot active={expanded}/></Suspense>:<span className="robot-glyph" aria-hidden="true">◉</span>}</button><span className="robot-caption"><span/> ORBIT / 360</span></div>
+    <main className={`companion ${expanded?'expanded':'collapsed'}${placement.above?' above':''}`} style={{'--shift':`${placement.shift}px`,'--pill-shift':`${placement.pill}px`} as CSSProperties}>
+      <div className="robot-stage" data-tauri-drag-region><div className="robot-halo"/><button className="robot-button" aria-label={expanded?'Collapse companion':'Open companion'} title={native?`Click to open or close.${caps?.tray?' Double-click to hide in the tray.':''} Drag to move.`:undefined} onMouseDown={e=>{if(native&&e.button===0)drag.current={x:e.screenX,y:e.screenY,moved:false};}} onMouseMove={e=>{const d=drag.current;if(!d||d.moved||Math.abs(e.screenX-d.x)+Math.abs(e.screenY-d.y)<5)return;d.moved=true;void getCurrentWindow().startDragging();}} onClick={e=>{const d=drag.current;drag.current=null;if(d?.moved)return;const tray=native&&!!caps?.tray;window.clearTimeout(clickTimer.current);if(tray&&e.detail>1){void getCurrentWindow().hide();return;}if(expanded){setExpanded(false);return;}clickTimer.current=window.setTimeout(()=>setExpanded(true),tray?DOUBLE_CLICK_MS:0);}}>{data.settings.robot?<Suspense fallback={<span className="robot-glyph" aria-hidden="true">◉</span>}><Robot active={expanded}/></Suspense>:<span className="robot-glyph" aria-hidden="true">◉</span>}</button><span className="robot-caption"><span/> ORBIT / 360</span></div>
       <nav className={`pill ${expanded?'open':''}`} aria-label="Companion actions">{([['new','New chat',Plus],['find','Find',Search],['projects','Projects',Folder]] as const).map(([id,label,Icon])=><button key={id} aria-label={label} className={view===id&&expanded?'selected':''} onClick={()=>view===id&&expanded&&!project?setExpanded(false):navigate(id)}><Icon size={17}/><span>{label}</span></button>)}</nav>
       {expanded&&<section className="panel" onMouseDown={e=>{if(native&&e.button===0&&!(e.target as Element).closest('button,a,input,select,textarea,label,.result-row'))void getCurrentWindow().startDragging();}}>
         <div className="panel-heading"><div><div className="eyebrow">{project?'PROJECT SPACE':view==='settings'?'MAKE IT YOURS':view==='new'?'PICK YOUR NEXT CONVERSATION':'PICK UP WHERE YOU LEFT OFF'}</div><h2>{project?project.title:view==='new'?'Where shall we begin?':view==='find'?'Find your work.':view==='projects'?'Your project spaces.':'Preferences.'}</h2></div><button className="icon-button" aria-label="Collapse panel" onClick={()=>setExpanded(false)}><Minimize2 size={17}/></button></div>

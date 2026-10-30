@@ -7,7 +7,7 @@ Window behaviour, views, and the extension popup. Sizes, colours and fonts come 
 
 ```yaml
 states:
-  collapsed: robot stage + pill only
+  collapsed: robot stage, with the pill appearing on hover or keyboard focus (native only)
   expanded:  robot stage + pill + panel
 sizing:
   rule: >
@@ -18,14 +18,30 @@ sizing:
   compact_below: SITE PROFILE.window.compact_below_width — a tighter layout, not a smaller font alone
   collapsed_height: design.collapsed, or 205 when compact, less the stage height given back when
                     the robot is off
-  on_screen: after every resize the window is clamped back inside the work area
+  placement: >
+    Anchored on the robot (src/placement.mjs), so opening and closing never moves it. The panel
+    opens below when it fits, above when it does not and there is more room overhead — the pill then
+    sits between panel and robot. Near a side edge the window stays inside the work area and the
+    robot slides toward the edge within it, so in a corner the panel opens diagonally away. Where
+    neither side has room the panel is shortened (it scrolls, never below `minimum`) rather than
+    moving the robot. Closing returns the window to exactly where it was opened from, unless it was
+    dragged while open; closed, only the robot must stay on screen, so the window's transparent
+    margin may overlap the Dock or an edge, and where the pill would land behind the Dock or taskbar
+    it moves above the robot — re-checked after every drag of a closed robot. Chosen when the panel opens or closes, never in use.
   measured: 330x529 logical open (20.0% of a 1280x680 work area) and 330x205 collapsed
 dragging: from the robot or any empty part of the open panel; a click under 5px still toggles
+double_click: >
+  on the robot, hides Orbit to the tray — only when a tray exists, so it can never strand the
+  window. A single click on a collapsed robot waits 220ms to tell the two apart; an open one
+  closes at once.
 chrome: no decorations, transparent, always on top, absent from the taskbar
 shortcuts:
   global: SITE PROFILE.window.shortcut toggles visibility, also in the tray menu
   in_window: SITE PROFILE.window.search_shortcut focuses Find; Escape closes
 tray_menu: [Show/Hide, Preferences, Pair a browser, Quit]
+tray_double_click: >
+  Windows only — opens robot, pill and panel on Find, with the menu moved to the right button.
+  macOS keeps its menu-on-click convention; a Linux AppIndicator tray reports no clicks at all.
 ```
 
 ## Views
