@@ -130,4 +130,18 @@ open_decisions:
   - id: prime-only
     decided: 2026-10-23
     decision: Orbit fills a composer and never submits. See knowledge principle 5.
+  - id: break-freely-until-users
+    decided: 2026-10-31
+    decision: >
+      While nobody runs Orbit but its author, identifiers and stored shapes may be changed
+      outright, with no migration path. The extension id, the workspace JSON and the service
+      token are all fair game; the whole cost is a local re-pair, and nobody's data is at risk.
+    rules_out: >
+      Compatibility shims, id aliases and migration code written speculatively for a user who
+      does not exist. It also rules out treating the pairing a rename discards as a reason not
+      to rename.
+    expires: >
+      The first time someone else installs Orbit — and a published store listing's id never
+      expires at all. So anything being renamed under this licence should be renamed to the
+      form it is meant to keep, not merely to the next one. Spend the free rename once.
 ```
