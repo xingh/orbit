@@ -1,6 +1,6 @@
 {
   "manifest_version": 3,
-  "name": "Orbit Chat Saver",
+  "name": "Orbit Link",
   "version": "0.3.0",
   "description": "Save chat titles and links straight into your Orbit companion. No login or chat content access.",
   "permissions": [
@@ -28,7 +28,7 @@
   },
   "browser_specific_settings": {
     "gecko": {
-      "id": "chat-saver@orbit.tekt.md",
+      "id": "link@orbit.tekt.md",
       "strict_min_version": "128.0"
     }
   },

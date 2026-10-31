@@ -67,6 +67,7 @@ Grab the file for your computer from the **[latest release](https://github.com/x
 | 🍎 Mac with Intel chip | `Orbit_…_x64.dmg` |
 | 🐧 Linux (any distro) | `Orbit_…_amd64.AppImage` |
 | 🐧 Ubuntu / Debian | `Orbit_…_amd64.deb` |
+| 🔗 Browser extension (Chrome / Edge) | `Orbit-Link-….zip` — see [Orbit Link](#orbit-link-the-browser-extension) |
 
 <details>
 <summary><b>Not sure which Mac you have?</b></summary>
@@ -172,20 +173,22 @@ The sequenced version, with dependencies and the reasoning behind each item, is
 - The robot's "camera" is decoration. Orbit never uses your webcam or screen.
 - Each provider's own plan limits still apply.
 
-## Browser extension
+## Orbit Link, the browser extension
 
-Orbit runs a small service on `127.0.0.1` while it is open, and the extension saves straight into it.
-The same unpacked folder works in Chrome, Edge and Firefox.
+Orbit runs a small service on `127.0.0.1` while it is open, and Orbit Link saves straight into it.
+Every release has it as `Orbit-Link-<version>.zip`; it is not in the browser stores yet.
 
 | Browser | How to load it |
 | --- | --- |
-| Chrome / Edge | Extensions → turn on **Developer mode** → **Load unpacked** → choose `browser-extension` |
-| Firefox | `about:debugging#/runtime/this-firefox` → **Load Temporary Add-on** → choose `browser-extension/manifest.json` |
+| Chrome / Edge | Unzip it into a folder you keep → `chrome://extensions` or `edge://extensions` → turn on **Developer mode** → **Load unpacked** → choose that folder |
+| Firefox (untested) | `about:debugging#/runtime/this-firefox` → **Load Temporary Add-on** → choose its `manifest.json`. Firefox drops it on restart until it is signed by Mozilla |
+
+From a checkout, load the `browser-extension` folder the same way.
 
 Then pair the browser once:
 
 1. In Orbit, open **Preferences → Browser extension → Pair a browser**. Pairing stays open for 60 seconds.
-2. In the browser, open the Orbit extension. The first time, click **Allow Orbit access** so it may reach `127.0.0.1`, then click **Pair with Orbit**.
+2. In the browser, open Orbit Link. The first time, click **Allow Orbit access** so it may reach `127.0.0.1`, then click **Pair with Orbit**.
 
 After that, **Save this chat** sends the title and link to Orbit and it appears in **Find** straight away.
 If Orbit is closed, the chat waits in the extension and is sent the next time you open the popup with

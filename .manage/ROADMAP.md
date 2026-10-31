@@ -14,6 +14,8 @@ Never archived. Sequence and dependencies; the detail is in the issue file each 
 
 ## In progress
 
+- [ ] `issue.0028.orbit-link-release.md` — the extension is Orbit Link, and every release
+      attaches it as a zip with Chrome/Edge install steps
 - [ ] `issue.0004.responsive-window.md` — shipped: 20% footprint, compact layout, dense list, lazy
       optional 3D robot. Left: the pill only on hover, double-click to the tray, tray double-click
       to open, and a panel that opens where there is room
