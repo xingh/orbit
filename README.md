@@ -178,12 +178,26 @@ The sequenced version, with dependencies and the reasoning behind each item, is
 Orbit runs a small service on `127.0.0.1` while it is open, and Orbit Link saves straight into it.
 Every release has it as `Orbit-Link-<version>.zip`; it is not in the browser stores yet.
 
-| Browser | How to load it |
-| --- | --- |
-| Chrome / Edge | Unzip it into a folder you keep → `chrome://extensions` or `edge://extensions` → turn on **Developer mode** → **Load unpacked** → choose that folder |
-| Firefox (untested) | `about:debugging#/runtime/this-firefox` → **Load Temporary Add-on** → choose its `manifest.json`. Firefox drops it on restart until it is signed by Mozilla |
+Unzip it into a folder you will keep — every browser here loads the **unzipped folder**, not the
+zip, and deleting the folder uninstalls the extension.
 
-From a checkout, load the `browser-extension` folder the same way.
+| Browser | Paste in the address bar | Then |
+| --- | --- | --- |
+| Chrome | `chrome://extensions` | **Developer mode** → **Load unpacked** → that folder |
+| Edge | `edge://extensions` | **Developer mode** → **Load unpacked** → that folder |
+| Brave | `brave://extensions` | **Developer mode** → **Load unpacked** → that folder |
+| Vivaldi | `vivaldi://extensions` | **Developer mode** → **Load unpacked** → that folder |
+| Opera | `opera://extensions` | **Developer mode** → **Load unpacked** → that folder |
+| Firefox | `about:debugging#/runtime/this-firefox` | **Load Temporary Add-on** → the folder's `manifest.json` |
+
+Those addresses have to be **pasted into the address bar**: no web page is allowed to link to a
+`chrome://` or `about:` address, so there is nothing to click.
+
+On Firefox the extension is **dropped every time the browser restarts**, until Mozilla signs it —
+that is Firefox's rule for unsigned extensions, not a bug. Load it again from the same place.
+
+From a checkout, load the `browser-extension` folder the same way; on Firefox choose
+`browser-extension/manifest.json` inside it.
 
 Then pair the browser once:
 

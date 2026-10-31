@@ -11,6 +11,7 @@ Never archived. Sequence and dependencies; the detail is in the issue file each 
 - [x] Import existing Claude and ChatGPT web chats **and** projects in one pass
 - [x] Chats filed under the projects they belong to, and a re-import that repairs entries already
       saved — `2026.10.23.import-links-and-responsiveness.plan.md`
+- [x] Why 21 of 34 Claude projects imported — the rows carry `archived_at`; `.archive/issue.0013`
 
 ## In progress
 
@@ -37,17 +38,18 @@ issues mirror this list.
    nearly full. Migration proven on a synthetic workspace of the live one's size
 4. **P1** `issue.0008.upstream-renames.md` — first use of `updated` and `title_edited_by_user`
 5. **P1** `issue.0009.upstream-deletes.md` — first use of tombstones and `missing_since`; its
-   archive rule is confirmed only once #13 is answered
+   archive rule rests on #13, which is answered: the Claude project rows do carry `archived_at`
 6. **P1** `issue.0007.workspace-api.md` — one interface, IPC and HTTP; the browser preview finally
    sees the real workspace
 7. **P1** `issue.0010.extension-search.md` — the first read route, on top of #7
 8. **P2** `issue.0017.robot-genome.md` — independent; built here, but the look needs the owner's
    eye before it lands
+9. **P1** `issue.draft.install-page.md` — Orbit serves the install instructions at `GET /`, for the
+   browser reading them. Finishes what #28 starts: the zip exists, this is how anyone finds out
+   what to do with it. Verifiable with curl, no owner needed
 
 ### Needs the owner
 
-9. **Review** `issue.0013.claude-projects-count.md` — one import and **Copy import report**.
-   Smallest ask, and #9 depends on the answer, so it comes first
 10. Not an issue: run the #6 migration on the live workspace, then #8 and #9 against a real
     re-import
 11. **P3** `issue.0011.prime-composer.md` — `?q=` and both composers can only be confirmed signed in

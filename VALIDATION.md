@@ -126,8 +126,11 @@ headlessly over Marionette. Read out of Orbit's SQLite and the extension's impor
   here. It is the second attempt only: the direct fetch, which is the path that imported 616
   ChatGPT chats, still runs first.
 - Grok has no scanner. Only the two services with reachable list endpoints are imported.
-- The Firefox host-permission prompt, and the extension's background script under Chrome's service
-  worker versus Firefox's event page.
+- The Firefox host-permission prompt as clicked. The state that raises it was reached on 2026-10-31
+  — a freshly installed Orbit Link reports "Orbit needs your permission to reach this computer" —
+  but **Allow** has never been pressed here; the imports ran on origins granted earlier by the user.
+  Chrome's service worker is likewise unexercised. Firefox's event page is **no longer** unverified:
+  the background script ran three full imports under it.
 - The **Pair a browser** button and the 60-second window as driven from the UI. The window's own
   logic is unit-tested and the closed-window rejection was verified over HTTP, but no GUI automation
   was available in this environment to click it.
