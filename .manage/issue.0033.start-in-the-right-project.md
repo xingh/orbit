@@ -58,3 +58,7 @@ of thing that gets noticed once and distrusted after.
 
 From a project row — single or combined — a new chat opens in the chosen account's project, with
 the ambiguity resolved by a decision that is written down rather than inferred.
+
+---
+
+Raised from Todoist task `6hvC25PjPgW3wRMR`, synced to GitHub as #33.

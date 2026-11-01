@@ -74,3 +74,34 @@ what Orbit is.
 Move it to its own repository, keep this file as the record of why, and open a small issue here
 only if the "post findings as entries" seam is wanted. Not scheduled on the roadmap until that is
 decided — it is listed there as raised and held, deliberately, rather than queued.
+
+---
+
+## As raised, verbatim
+
+Kept here because `manage sync` replaced the issue body on GitHub with this file, and GitHub does
+not retain a body from before its first edit. **This capture is itself truncated** — it was read
+with a character limit and cut off mid-list. The full text is in the Todoist task it was synced
+from, and the work it describes is on the box at `/workspace/craigslist-scan/`.
+
+> Orbit Feature — local area scanning for intelcraft (Rahul Singh).
+>
+> **Principle:** We learn people via their browser, so learn their areas the same way; each person
+> wants local things monitored (Craigslist, Nextdoor, etc.).
+>
+> **What shipped on the box (2026-11-01 America/New_York):**
+> - `/workspace/craigslist-scan/scanlist.yaml` — metro priority, verified CL subdomains/subareas,
+>   wealthy neighborhoods with ZIP + ACS/QuickFacts/Census Reporter source links, categories,
+>   keywords
+> - `/workspace/craigslist-scan/communities.xlsx` — Status Grid (COMPLETE=light blue, ACTIVE=green,
+>   PENDING=orange, SKIPPED/CANCELLED=light red + legend) + Metros + Communities (`run` Y/N;
+>   scanner reads run=Y)
+> - `/workspace/craigslist-scan/scanner.py` — httpx+selectolax polite scanner (robots + rate
+>   limit), SQLite+CSV out; updates Status Grid; skips SKIPPED/CANCELLED
+> - `/workspace/craigslist-scan/README.md`
+> - Test scan: 5 DC `cpg` searches; McLean/nva `query=AI` returned 3 live listings into
+>   `results.sqlite` / `results.csv`
+>
+> **Metros (priority):** DC → Virginia Beach (norfolk) → Baltimore → NYC → Richmond → Chicago →
+> SF Bay → LA → San Diego → Honolulu/Maui/Kauai (all hawaii via honolulu.craigslist.org subareas
+> oah/…  *[capture ends here]*

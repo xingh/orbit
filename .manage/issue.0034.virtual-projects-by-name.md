@@ -125,3 +125,7 @@ Access requests apply to member projects as today.
 - `.inbox` (and other leading-dot controls) work as virtual shelves without special-casing
   beyond normalization.
 - Split into a filed issue when syncing; alias table only if a real dual-spelling case appears.
+
+---
+
+Raised from Todoist task `6hvMXCgr2XCpX6Jq`, synced to GitHub as #34.

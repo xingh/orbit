@@ -49,3 +49,7 @@ providers' projects at once (#34), "start a chat here" has to ask which one, or 
 
 A project row carries a new-chat control that opens a composer in that project at its provider,
 with nothing submitted.
+
+---
+
+Raised from Todoist task `6hvMc5pgMmXqqQMH`, synced to GitHub as #35.

@@ -62,3 +62,7 @@ at import, and the UI reads whichever it needs.
 
 An entry records which account it came from, Find and Projects can filter by it, and two accounts
 on the same provider are distinguishable in the list without opening anything.
+
+---
+
+Raised from Todoist task `6hv8fj6cRFMc54c2`, synced to GitHub as #31.

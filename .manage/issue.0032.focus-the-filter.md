@@ -43,3 +43,7 @@ the view becoming `find` or `projects`.
 
 Opening Find or Projects, by pill or by shortcut, puts the caret in the filter box; typing filters
 immediately; and an existing filter is selected rather than cleared or appended to.
+
+---
+
+Raised from Todoist task `6hv8jgGgMf433qF2`, synced to GitHub as #32.
