@@ -429,11 +429,12 @@ fn trimmed(value: &serde_json::Value, limit: usize) -> String {
         .collect()
 }
 
-/// What one merge did: the entries saved, the ones already saved that gained a project link, how
-/// many changed nothing, and why anything was refused.
+/// What one merge did: the entries saved, the ones already saved that gained a project link or a
+/// new title, how many changed nothing, and why anything was refused.
 pub struct Merged {
     pub added: Vec<serde_json::Value>,
     pub linked: Vec<serde_json::Value>,
+    pub renamed: Vec<serde_json::Value>,
     pub skipped: usize,
     pub rejected: Vec<String>,
 }
@@ -448,6 +449,7 @@ pub fn merge_chats(workspace: &mut serde_json::Value, incoming: &[serde_json::Va
     let mut merged = Merged {
         added: Vec::new(),
         linked: Vec::new(),
+        renamed: Vec::new(),
         skipped: 0,
         rejected: Vec::new(),
     };
@@ -479,11 +481,19 @@ pub fn merge_chats(workspace: &mut serde_json::Value, incoming: &[serde_json::Va
                             .as_str()
                             .unwrap_or_default()
                             .is_empty();
+                    // Orbit shows what is there now, not what was there: a title the provider has
+                    // changed is the provider's to change, so the stored one follows it.
+                    let renamed = items[at]["title"] != item["title"];
+                    if renamed {
+                        items[at]["title"] = item["title"].clone();
+                    }
                     if fills_a_gap {
                         items[at]["projectId"] = serde_json::json!(project);
-                        merged.linked.push(items[at].clone());
-                    } else {
-                        merged.skipped += 1;
+                    }
+                    match (fills_a_gap, renamed) {
+                        (true, _) => merged.linked.push(items[at].clone()),
+                        (false, true) => merged.renamed.push(items[at].clone()),
+                        (false, false) => merged.skipped += 1,
                     }
                     continue;
                 }
@@ -493,6 +503,68 @@ pub fn merge_chats(workspace: &mut serde_json::Value, incoming: &[serde_json::Va
         }
     }
     merged
+}
+
+/// A sweep that would take out more than this share of one provider's entries of one kind is
+/// refused rather than applied. An import reads undocumented endpoints: an organization that
+/// answers 403 for a moment, or a list that pages short, would otherwise read as "the user deleted
+/// everything". Losing the index is far worse than keeping a stale row for one more import.
+const SWEEP_CEILING: f64 = 0.34;
+/// Below this many entries a share is meaningless, so a small list may be swept down to nothing.
+const SWEEP_FLOOR: usize = 8;
+
+/// Removes the entries of one provider and kind that the provider no longer lists, so the index
+/// shows what is there rather than what was there. `present` is the complete set of ids the
+/// provider just gave for that pair.
+///
+/// Returns the removed entries, or a sentence naming why the sweep was refused.
+pub fn sweep_workspace(
+    workspace: &mut serde_json::Value,
+    provider: &str,
+    kind: &str,
+    present: &[String],
+) -> Result<Vec<serde_json::Value>, String> {
+    let Some(items) = workspace["items"].as_array_mut() else {
+        return Ok(Vec::new());
+    };
+    let doomed: Vec<serde_json::Value> = items
+        .iter()
+        .filter(|item| {
+            item["provider"] == provider
+                && item["type"] == kind
+                && !present.iter().any(|id| item["id"] == id.as_str())
+        })
+        .cloned()
+        .collect();
+    if doomed.is_empty() {
+        return Ok(Vec::new());
+    }
+    let mine = items
+        .iter()
+        .filter(|item| item["provider"] == provider && item["type"] == kind)
+        .count();
+    if mine > SWEEP_FLOOR && (doomed.len() as f64) / (mine as f64) > SWEEP_CEILING {
+        return Err(format!(
+            "{} of your {mine} {provider} {kind} entries are missing from that list, which looks \
+             like a short read rather than a deletion. Nothing was removed.",
+            doomed.len()
+        ));
+    }
+    let gone: Vec<String> = doomed
+        .iter()
+        .map(|item| item["id"].as_str().unwrap_or_default().to_string())
+        .collect();
+    items.retain(|item| !gone.iter().any(|id| item["id"] == id.as_str()));
+    // A chat filed under a project that has just gone would otherwise point at nothing.
+    for item in items.iter_mut() {
+        if gone
+            .iter()
+            .any(|id| item["projectId"] == id.as_str() && !id.is_empty())
+        {
+            item["projectId"] = serde_json::json!("");
+        }
+    }
+    Ok(doomed)
 }
 
 fn save_chats(app: &AppHandle, request: &mut Request, origin: Option<&str>) -> Reply {
@@ -513,12 +585,47 @@ fn save_chats(app: &AppHandle, request: &mut Request, origin: Option<&str>) -> R
         Ok(parsed) => parsed,
         Err(_) => return error(400, "Could not read that request.", origin),
     };
+    // A sweep arrives on its own, after the batches it belongs to: the complete set of ids one
+    // provider just listed for one kind of entry, which is what lets Orbit drop the rest.
+    let sweep = parsed["sweep"].as_object().map(|request| {
+        (
+            request["provider"].as_str().unwrap_or_default().to_string(),
+            request["type"].as_str().unwrap_or_default().to_string(),
+            request["ids"]
+                .as_array()
+                .map(|ids| {
+                    ids.iter()
+                        .filter_map(|id| id.as_str().map(str::to_string))
+                        .collect::<Vec<String>>()
+                })
+                .unwrap_or_default(),
+        )
+    });
     let incoming = match parsed["items"].as_array() {
         Some(items) => items.clone(),
+        None if sweep.is_some() => Vec::new(),
         None => vec![parsed],
     };
-    if incoming.is_empty() {
+    if incoming.is_empty() && sweep.is_none() {
         return error(400, "No conversation was included.", origin);
+    }
+    if let Some((provider, kind, ids)) = sweep.as_ref() {
+        if !matches!(kind.as_str(), "chat" | "project")
+            || provider.is_empty()
+            || !providers::PROVIDER_HOSTS
+                .iter()
+                .any(|(id, _)| *id == provider)
+        {
+            return error(400, "That is not a list Orbit can sweep.", origin);
+        }
+        if ids.is_empty() {
+            // A sweep with nothing in it is the shape a failed read takes, never a real empty list.
+            return error(
+                400,
+                "That sweep listed nothing, so nothing was removed.",
+                origin,
+            );
+        }
     }
 
     let state: State<Database> = app.state();
@@ -540,13 +647,23 @@ fn save_chats(app: &AppHandle, request: &mut Request, origin: Option<&str>) -> R
         );
 
     let merged = merge_chats(&mut workspace, &incoming);
+    let mut removed = Vec::new();
+    let mut refused: Option<String> = None;
+    if let Some((provider, kind, ids)) = sweep.as_ref() {
+        match sweep_workspace(&mut workspace, provider, kind, ids) {
+            Ok(gone) => removed = gone,
+            Err(reason) => refused = Some(reason),
+        }
+    }
     let changed: Vec<serde_json::Value> = merged
         .added
         .iter()
         .chain(merged.linked.iter())
+        .chain(merged.renamed.iter())
         .cloned()
         .collect();
-    if !changed.is_empty() {
+    let touched = !changed.is_empty() || !removed.is_empty();
+    if touched {
         let serialized = workspace.to_string();
         if serialized.len() > WORKSPACE_LIMIT {
             return error(
@@ -568,7 +685,8 @@ fn save_chats(app: &AppHandle, request: &mut Request, origin: Option<&str>) -> R
     // Released before the window is told, so the UI's own read does not wait on this request.
     drop(db);
 
-    if !changed.is_empty() {
+    if touched {
+        // The window reloads the whole workspace on this, so a removal needs no event of its own.
         let _ = app.emit("chats-added", &changed);
     }
     json(
@@ -576,6 +694,9 @@ fn save_chats(app: &AppHandle, request: &mut Request, origin: Option<&str>) -> R
         serde_json::json!({
             "added": merged.added.len(),
             "linked": merged.linked.len(),
+            "renamed": merged.renamed.len(),
+            "removed": removed.len(),
+            "refused": refused,
             "skipped": merged.skipped,
             "rejected": merged.rejected,
         })
@@ -723,6 +844,136 @@ mod tests {
         );
         assert_eq!((merged.added.len(), merged.skipped), (0, 2));
         assert_eq!(workspace["items"].as_array().unwrap().len(), 2);
+    }
+
+    #[test]
+    fn a_title_the_provider_changed_replaces_the_stored_one() {
+        let mut workspace = serde_json::json!({ "items": [], "settings": {} });
+        merge_chats(&mut workspace, &[chat("one", "https://claude.ai/chat/1")]);
+
+        let mut later = chat("one", "https://claude.ai/chat/1");
+        later["title"] = serde_json::json!("Renamed upstream");
+        let merged = merge_chats(&mut workspace, &[later]);
+        assert_eq!(
+            (merged.added.len(), merged.renamed.len(), merged.skipped),
+            (0, 1, 0)
+        );
+        assert_eq!(workspace["items"][0]["title"], "Renamed upstream");
+
+        // An unchanged title is not a rename, so a re-import of the same list reports nothing.
+        let merged = merge_chats(
+            &mut workspace,
+            &[{
+                let mut same = chat("one", "https://claude.ai/chat/1");
+                same["title"] = serde_json::json!("Renamed upstream");
+                same
+            }],
+        );
+        assert_eq!((merged.renamed.len(), merged.skipped), (0, 1));
+    }
+
+    #[test]
+    fn a_project_that_gains_a_link_and_a_new_title_is_reported_once() {
+        let mut workspace = serde_json::json!({ "items": [], "settings": {} });
+        merge_chats(
+            &mut workspace,
+            &[
+                serde_json::json!({ "id": "p", "type": "project", "title": "Old", "provider": "claude", "url": "https://claude.ai/project/p" }),
+                chat("c", "https://claude.ai/chat/c"),
+            ],
+        );
+        let mut again = chat("c", "https://claude.ai/chat/c");
+        again["title"] = serde_json::json!("New name");
+        again["projectId"] = serde_json::json!("p");
+        let merged = merge_chats(&mut workspace, &[again]);
+        assert_eq!(
+            (merged.linked.len(), merged.renamed.len(), merged.skipped),
+            (1, 0, 0)
+        );
+        let chat_item = workspace["items"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|item| item["id"] == "c")
+            .unwrap();
+        assert_eq!(chat_item["title"], "New name");
+        assert_eq!(chat_item["projectId"], "p");
+    }
+
+    #[test]
+    fn a_sweep_removes_what_the_provider_no_longer_lists() {
+        let mut workspace = serde_json::json!({ "items": [], "settings": {} });
+        let projects: Vec<serde_json::Value> = (0..10)
+            .map(|n| {
+                serde_json::json!({ "id": format!("p{n}"), "type": "project", "title": format!("P{n}"),
+                                    "provider": "claude", "url": format!("https://claude.ai/project/{n}") })
+            })
+            .collect();
+        merge_chats(&mut workspace, &projects);
+        let mut filed = chat("c", "https://claude.ai/chat/c");
+        filed["projectId"] = serde_json::json!("p9");
+        merge_chats(&mut workspace, &[filed]);
+
+        let present: Vec<String> = (0..9).map(|n| format!("p{n}")).collect();
+        let removed = sweep_workspace(&mut workspace, "claude", "project", &present).unwrap();
+        assert_eq!(removed.len(), 1);
+        assert_eq!(removed[0]["id"], "p9");
+        let items = workspace["items"].as_array().unwrap();
+        assert!(items.iter().all(|item| item["id"] != "p9"));
+        // The chat stays, but is no longer filed under a project that has gone.
+        let kept = items.iter().find(|item| item["id"] == "c").unwrap();
+        assert_eq!(kept["projectId"], "");
+    }
+
+    #[test]
+    fn a_sweep_leaves_other_providers_and_kinds_alone() {
+        let mut workspace = serde_json::json!({ "items": [], "settings": {} });
+        merge_chats(
+            &mut workspace,
+            &[
+                serde_json::json!({ "id": "cp", "type": "project", "title": "C", "provider": "claude", "url": "https://claude.ai/project/cp" }),
+                serde_json::json!({ "id": "gp", "type": "project", "title": "G", "provider": "chatgpt", "url": "https://chatgpt.com/g/gp/project" }),
+                chat("cc", "https://claude.ai/chat/cc"),
+            ],
+        );
+        // A sweep of Claude projects that lists none of them: only "cp" is in scope, and a list
+        // this small is allowed to empty out.
+        let removed =
+            sweep_workspace(&mut workspace, "claude", "project", &["other".to_string()]).unwrap();
+        assert_eq!(removed.len(), 1);
+        assert_eq!(removed[0]["id"], "cp");
+        let items = workspace["items"].as_array().unwrap();
+        assert_eq!(items.len(), 2);
+        assert!(items.iter().any(|item| item["id"] == "gp"));
+        assert!(items.iter().any(|item| item["id"] == "cc"));
+    }
+
+    #[test]
+    fn a_sweep_that_would_take_too_much_is_refused_whole() {
+        let mut workspace = serde_json::json!({ "items": [], "settings": {} });
+        let projects: Vec<serde_json::Value> = (0..20)
+            .map(|n| {
+                serde_json::json!({ "id": format!("p{n}"), "type": "project", "title": format!("P{n}"),
+                                    "provider": "claude", "url": format!("https://claude.ai/project/{n}") })
+            })
+            .collect();
+        merge_chats(&mut workspace, &projects);
+
+        // Half the list missing reads as a short response, not twenty deletions.
+        let present: Vec<String> = (0..10).map(|n| format!("p{n}")).collect();
+        let refusal = sweep_workspace(&mut workspace, "claude", "project", &present).unwrap_err();
+        assert!(refusal.contains("10 of your 20"), "{refusal}");
+        assert_eq!(workspace["items"].as_array().unwrap().len(), 20);
+
+        // A third of it is within reach, so that one does apply.
+        let present: Vec<String> = (0..14).map(|n| format!("p{n}")).collect();
+        assert_eq!(
+            sweep_workspace(&mut workspace, "claude", "project", &present)
+                .unwrap()
+                .len(),
+            6
+        );
+        assert_eq!(workspace["items"].as_array().unwrap().len(), 14);
     }
 
     #[test]

@@ -111,3 +111,56 @@ Reading the browser's cookie store to call these endpoints directly from a scrip
 settle the `guess` entries above. It would work, and it is the obvious shortcut. It was declined:
 it is credential exfiltration by shape, whatever the intent, and the same answers arrive safely
 from the trace of a real run. Leave the guesses marked as guesses instead.
+
+## Project lists have no `updated_at`, and ChatGPT's project ids outlive their names
+
+observed: 2026-11-01, on the owner's live account
+
+A rename is invisible to a timestamp. The Claude project row carries
+`uuid|name|description|is_private|creator|is_starred|is_starter_project|is_harmony_project|type|
+subtype|settings|archiver|archived_at|created_at` — **no `updated_at`** — so there is no way to ask
+"what changed since?"; the whole list has to be compared by name. ChatGPT's gizmo rows do carry
+`updated_at`, but the id is stable across a rename either way, which is what makes the comparison
+work: match on id, take the name.
+
+Measured before the fix: 10 of 30 Claude projects and 18 of 34 ChatGPT projects held a name the
+provider no longer used, some of them for months. Renaming projects is evidently a normal thing to
+do, not an edge case.
+
+## `/api/organizations/{uuid}/projects_v2` exists, and pre-filters archives
+
+observed: 2026-11-01
+
+Alongside the paged `projects` endpoint, `projects_v2` returns the non-archived projects only — 28
+where `projects?limit=100&offset=0` returned 41 rows of which 13 carried `archived_at`. Orbit does
+not use it: the paged endpoint already gives the archive flag, and filtering here is a decision
+Orbit would rather make than inherit. Recorded because a future `include_archived` argument on the
+old endpoint, or its removal, would show up here first.
+
+## A Console-only Claude organization answers 403, and that is correct
+
+observed: 2026-11-01
+
+`/api/organizations` returns every organization the session belongs to, and only some can serve
+chat lists. The distinguishing field is `capabilities`: the claude.ai one holds
+`["claude_max", "chat"]`, the API/Console one `["api", "customer_terms:standard"]`. The second
+answers 403 to `/projects` and `/chat_conversations` — it has no claude.ai content at all, so
+nothing is being missed. `eachOrganisation` already tries chat-capable organizations first and
+treats a single refusal as expected; this names *why* the refusal is expected, so the 403 in every
+import trace is not read as a lost workspace.
+
+A sweep must not trust that refusal, though: a *transient* 403 from the chat-capable organization
+looks identical in the aggregate. That is what the service's ceiling is for — see
+`.manage/issue.0009.upstream-deletes.md`.
+
+## A fetch to claude.ai's API from a page on claude.ai is refused; from the extension it is not
+
+observed: 2026-11-01
+
+Running `fetch('/api/organizations', { credentials: 'include' })` in a content page on claude.ai
+returns **403**. The same request from the extension's own page, which holds the granted host
+permission, returns 200. Worth knowing before debugging an import from the devtools console on the
+provider's own site and concluding the session is broken.
+
+ChatGPT is the opposite shape: `backend-api` answers **401** to a cookie alone and needs the bearer
+from `/api/auth/session`, which is why `chatgptChats` reads that first.

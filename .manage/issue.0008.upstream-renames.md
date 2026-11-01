@@ -1,40 +1,56 @@
 ---
 issue: 8
 title: A chat renamed at the provider should update in Orbit
-state: open
+state: done
 opened: 2026-10-23
 closed:
 github: https://github.com/xingh/orbit/issues/8
 owner: file
 arkitype: [02, 03]
-prerequisites: [issue.0006.per-item-storage.md]
+prerequisites: []
 ---
 
 # Upstream renames
 
 ## What
 
-Rename a conversation on claude.ai and Orbit keeps the old title forever. A re-import reports it as
-`skipped` and changes nothing.
+Rename a conversation or a project at the provider and Orbit kept the old title forever. A
+re-import reported it as `skipped` and changed nothing.
 
-## Why it is not simply "overwrite the title"
+Measured on the live workspace on 2026-11-01, before the fix: **28 of 64 projects** carried a name
+the provider no longer used — 10 of 30 on Claude, 18 of 34 on ChatGPT. Nothing was wrong with the
+import; it simply had no rule for this.
 
-"Nothing is overwritten" is what protects a title the user edited themselves. The fix needs a
-distinction the data model does not have: *the user renamed it* (keep) versus *the provider renamed
-it* (refresh). One flag per entry, set when a title is edited in Orbit, and the rule becomes
-"refresh when the flag is unset and the title differs".
+## What now happens
 
-The `title_edited_by_user` column is already in the intended schema in
-`issue.0006.per-item-storage.md` for this reason.
+`merge_chats` compares the incoming title with the stored one and takes the incoming one. The
+result is reported separately from `skipped`, as `renamed`, and the popup says so: "Renamed 28."
 
-## Note
+This is the owner's decision of 2026-11-01, recorded as `mirror-not-archive` in
+`.arkitype/03-software.md`: the index shows what is at the provider now, not what was there.
 
-Editing a saved chat's title in Orbit is itself unbuilt — it is on the README roadmap as "Edit saved
-chats and re-link moved project folders". Until it exists the flag is always unset, so the simple
-behaviour (always refresh) is correct in the interim. Build the flag anyway; it costs nothing now
-and avoids a migration later.
+## Ruled out, and why
+
+- **Waiting for `title_edited_by_user`.** This file used to argue that overwriting a title needs a
+  flag distinguishing "the user renamed it" from "the provider renamed it", and that the flag
+  belonged to `issue.0006.per-item-storage.md`. That held the fix behind a storage migration for a
+  distinction nothing can yet create: **Orbit has no way to edit a saved title.** The create modal
+  types one, and `note` is the field for the user's own words. So the flag would always be unset,
+  and the rule it guards would always say "refresh".
+- **Keeping a hand-typed title for an entry the provider also lists.** A chat saved through the
+  modal does carry a title the user typed, and an import of that same chat now replaces it. That is
+  the cost of mirroring, it was asked for, and `note` survives untouched. Revisit when editing a
+  title in Orbit exists — then this needs the flag after all, and `prerequisites` gets
+  `issue.0006` back.
 
 ## Done when
 
-A conversation renamed upstream shows its new title after an import, and a title edited in Orbit
-survives one.
+- [x] A project renamed upstream shows its new title after an import.
+- [x] A re-import of an unchanged list reports 0 renamed, not N.
+- [x] Verified against the owner's live data, 2026-11-01: **498 titles refreshed** — 470 chats
+      and all 28 projects. `title` was the only field that changed on any entry.
+
+## Note on chats
+
+The same rule applies to chats and needs nothing extra, since renames ride the normal batches.
+It is the *sweep* that is restricted to projects — see `issue.0009.upstream-deletes.md`.
