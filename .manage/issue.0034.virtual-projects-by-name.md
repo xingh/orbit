@@ -1,10 +1,10 @@
 ---
-issue: draft
-title: Virtual projects — same name across agents (.inbox, rd/tekt, …)
+issue: 34
+title: "Orbit Feature : show combined project list"
 state: open
 opened: 2026-10-29
 closed:
-github:
+github: https://github.com/xingh/orbit/issues/34
 owner: file
 arkitype: [02, 03, 04]
 prerequisites: [issue.0006.per-item-storage.md, issue.0007.workspace-api.md]
@@ -31,6 +31,19 @@ Claude  .inbox  ─┐
 ChatGPT .inbox  ─┼─►  Virtual project ".inbox"  →  all chats under those project ids
 Grok    .inbox  ─┘         (titles + links only)
 ```
+
+## Filed as #34, with the display half it had been missing
+
+Raised again from Todoist as "show combined project list", which is this draft with the part it
+never specified — what the merged row actually looks like:
+
+> When projects across accounts/tools have identical names, show them as one combined entry in the
+> project list. The icon should show both sources somehow (e.g. stacked or split icons), and the
+> thread listing for that entry should be combined across the merged projects.
+
+So the union is not only a query: a combined row has to say *which* providers it came from, or it
+reads as one project that is secretly several, and clicking through becomes a guess. The icon
+carries that, and the thread list under it is the union rather than one provider's.
 
 ## Why it matters
 
