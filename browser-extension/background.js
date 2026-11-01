@@ -129,13 +129,15 @@ async function runImport() {
     let added = 0;
     let skipped = 0;
     let linked = 0;
+    let renamed = 0;
+    let removed = 0;
     const problems = [];
     const trace = [];
     // Shared across the lists of one import: a project list often knows which chats belong to it.
     const context = newContext();
     for (const scanner of SCANNERS) {
       const progress = extra =>
-        report({ running: true, provider: scanner.label, added, skipped, linked, ...extra });
+        report({ running: true, provider: scanner.label, added, skipped, linked, renamed, removed, ...extra });
       await progress({ found: 0 });
       try {
         const result = await scan(scanner, count => void progress({ found: count }), context);
@@ -145,24 +147,36 @@ async function runImport() {
           problems.push(`${scanner.label}: nothing came back to import.`);
           continue;
         }
-        const sent = await sendInBatches(port, token, result.found, BATCH, batch =>
-          void progress({
-            found: result.found.length,
-            sent: batch.sent,
-            added: added + batch.added,
-            skipped: skipped + batch.skipped,
-            linked: linked + batch.linked,
-          }),
+        const sent = await sendInBatches(
+          port,
+          token,
+          result.found,
+          BATCH,
+          batch =>
+            void progress({
+              found: result.found.length,
+              sent: batch.sent,
+              added: added + batch.added,
+              skipped: skipped + batch.skipped,
+              linked: linked + batch.linked,
+              renamed: renamed + batch.renamed,
+            }),
+          scanner.sweeps,
         );
         added += sent.added;
         skipped += sent.skipped;
         linked += sent.linked;
+        renamed += sent.renamed;
+        removed += sent.removed;
+        // A refused sweep is the one thing here the user has to hear about: the list read short,
+        // so Orbit is still showing entries the provider may no longer have.
+        if (sent.refused) problems.push(`${scanner.label}: ${sent.refused}`);
       } catch (failure) {
         trace.push({ scanner: scanner.id, requests: failure.trace ?? [] });
         problems.push(`${scanner.label}: ${failure.message}`);
       }
     }
-    await report({ running: false, added, skipped, linked, problems, trace });
+    await report({ running: false, added, skipped, linked, renamed, removed, problems, trace });
   } catch (failure) {
     await report({ running: false, error: failure.message });
   } finally {

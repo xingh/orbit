@@ -31,12 +31,12 @@ export async function findOrbit() {
  * Posts conversations to Orbit. Throws with a readable reason; a 401 also clears the stored token
  * so the popup asks to pair again.
  */
-export async function sendChats(port, token, items) {
+export async function sendChats(port, token, items, sweep) {
   const response = await fetch(`http://127.0.0.1:${port}/chats`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-    body: JSON.stringify({ items }),
-    signal: AbortSignal.timeout(15000),
+    body: JSON.stringify(sweep ? { items, sweep } : { items }),
+    signal: AbortSignal.timeout(30000),
   });
   if (response.status === 401) {
     await api.storage.local.remove('token');
@@ -49,18 +49,37 @@ export async function sendChats(port, token, items) {
   return response.json();
 }
 
-/** Orbit's workspace has a 2 MB ceiling, so a long history goes over in batches. */
-export async function sendInBatches(port, token, items, size, onBatch) {
+/**
+ * Orbit's workspace has a 2 MB ceiling, so a long history goes over in batches.
+ *
+ * `sweep` names the provider and kind this whole list covers. It is sent once, after the last
+ * batch, and tells Orbit it may drop its other entries of that kind — which is the only way a
+ * project deleted or archived upstream stops showing in Orbit. Orbit refuses a sweep that would
+ * take too much, and says so in `refused`.
+ */
+export async function sendInBatches(port, token, items, size, onBatch, sweep) {
   let added = 0;
   let skipped = 0;
   // Entries Orbit already had, which this pass filed under a project for the first time.
   let linked = 0;
+  // Entries whose title the provider has changed since they were saved.
+  let renamed = 0;
   for (let at = 0; at < items.length; at += size) {
     const result = await sendChats(port, token, items.slice(at, at + size));
     added += result.added ?? 0;
     skipped += result.skipped ?? 0;
     linked += result.linked ?? 0;
-    onBatch?.({ added, skipped, linked, sent: Math.min(at + size, items.length) });
+    renamed += result.renamed ?? 0;
+    onBatch?.({ added, skipped, linked, renamed, sent: Math.min(at + size, items.length) });
   }
-  return { added, skipped, linked };
+  if (!sweep) return { added, skipped, linked, renamed, removed: 0, refused: null };
+  const swept = await sendChats(port, token, [], { ...sweep, ids: items.map(item => item.id) });
+  return {
+    added,
+    skipped,
+    linked,
+    renamed,
+    removed: swept.removed ?? 0,
+    refused: swept.refused ?? null,
+  };
 }

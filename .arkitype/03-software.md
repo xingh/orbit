@@ -144,4 +144,23 @@ open_decisions:
       The first time someone else installs Orbit — and a published store listing's id never
       expires at all. So anything being renamed under this licence should be renamed to the
       form it is meant to keep, not merely to the next one. Spend the free rename once.
+  - id: mirror-not-archive
+    decided: 2026-11-01
+    decision: >
+      The index shows what is at the provider now, not what was there. A title the provider has
+      changed replaces the stored one, and an entry the provider no longer lists — deleted or
+      archived — is removed outright. Orbit is not a record of history; it is a current index, and
+      an entry whose link 404s is worse than no entry.
+    rules_out: >
+      Tombstones, a `missingSince` date and the greyed "no longer at Claude" row that
+      issue.0009 designed. Also rules out keeping an entry because its title was once typed by
+      hand: provider truth wins, and the owner asked for exactly that.
+    but_not: >
+      Deleting on a *short read*. A list that pages short, or an organization that answers 403 for
+      a moment, looks the same as a mass deletion. So a sweep is scoped to one provider and one
+      kind, must carry at least one id, and the service refuses it outright when it would take
+      more than a third of what it can see — reporting the refusal rather than applying it.
+      Chat lists are not swept at all: they are walked by `offset` over a list the provider orders
+      by recency, so a chat updated mid-walk shifts pages and is never seen.
+    see: .manage/issue.0008.upstream-renames.md
 ```

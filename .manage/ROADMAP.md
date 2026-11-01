@@ -12,6 +12,8 @@ Never archived. Sequence and dependencies; the detail is in the issue file each 
 - [x] Chats filed under the projects they belong to, and a re-import that repairs entries already
       saved — `2026.10.23.import-links-and-responsiveness.plan.md`
 - [x] Why 21 of 34 Claude projects imported — the rows carry `archived_at`; `.archive/issue.0013`
+- [x] The index mirrors the provider: a renamed project is renamed here, and one that is gone or
+      archived is removed — #8 and #9, under the `mirror-not-archive` decision
 
 ## In progress
 
@@ -34,11 +36,16 @@ issues mirror this list.
    settles is what #12 remembers
 2. **P0** `issue.0012.window-restore-position.md` — remember the robot's position, validated
    against the monitor layout on every show
-3. **P0** `issue.0006.per-item-storage.md` — unblocks #8, #9, #7 and #14, and the 2 MB blob is
-   nearly full. Migration proven on a synthetic workspace of the live one's size
-4. **P1** `issue.0008.upstream-renames.md` — first use of `updated` and `title_edited_by_user`
-5. **P1** `issue.0009.upstream-deletes.md` — first use of tombstones and `missing_since`; its
-   archive rule rests on #13, which is answered: the Claude project rows do carry `archived_at`
+3. **P0** `issue.0006.per-item-storage.md` — unblocks #7 and #14, and the 2 MB blob is nearly
+   full. Migration proven on a synthetic workspace of the live one's size. No longer blocks #8 or
+   #9: both landed without it
+4. **P1** `issue.0008.upstream-renames.md` — built: a title the provider changed replaces the
+   stored one. No longer waits on #6; nothing in Orbit can edit a title, so the flag it was held
+   for would always be unset. Left: confirming it on live data
+5. **P1** `issue.0009.upstream-deletes.md` — built for projects: a sweep carrying the whole list
+   removes what the provider no longer has, refused whole when it would take more than a third.
+   No longer waits on #6, and tombstones are ruled out — see `mirror-not-archive`. Left: chats,
+   which `offset` paging cannot sweep safely
 6. **P1** `issue.0007.workspace-api.md` — one interface, IPC and HTTP; the browser preview finally
    sees the real workspace
 7. **P1** `issue.0010.extension-search.md` — the first read route, on top of #7
@@ -61,10 +68,7 @@ issues mirror this list.
 ### Dependencies
 
 ```
-issue.0006.per-item-storage.md          rows + updated + tombstones; the 2 MB blob is nearly full
-        |
-        +-- issue.0008.upstream-renames.md        refresh a title the provider changed
-        +-- issue.0009.upstream-deletes.md        mark what is gone; never reconcile a partial sweep
+issue.0006.per-item-storage.md          rows + updated; the 2 MB blob is nearly full
         |
 issue.0007.workspace-api.md             one API, consumed by the desktop itself
         |

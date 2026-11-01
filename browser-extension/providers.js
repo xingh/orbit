@@ -359,10 +359,17 @@ async function chatgptProjects(ask, onProgress, context = newContext()) {
 /**
  * Projects come before chats for each service, and Orbit saves them in that order, so a chat can be
  * filed under a project that is already there.
+ *
+ * `sweeps` says this list is complete enough to delete against: after it is sent, Orbit drops its
+ * other entries of that provider and kind, so a project deleted or archived upstream stops showing.
+ * Only the project lists carry it. Both come back in a single short read, while the chat lists are
+ * walked by `offset` over a list the provider orders by *recency* — a chat updated mid-walk shifts
+ * pages and is simply never seen, and sweeping on that would delete conversations that still exist.
  */
 export const SCANNERS = [
   {
     id: 'claude-projects',
+    sweeps: { provider: 'claude', type: 'project' },
     label: 'Claude projects',
     origin: 'https://claude.ai/*',
     home: 'https://claude.ai/projects',
@@ -379,6 +386,7 @@ export const SCANNERS = [
   },
   {
     id: 'chatgpt-projects',
+    sweeps: { provider: 'chatgpt', type: 'project' },
     label: 'ChatGPT projects',
     origin: 'https://chatgpt.com/*',
     home: 'https://chatgpt.com/',

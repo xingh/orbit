@@ -82,6 +82,7 @@ function reportText(state) {
     `added ${state.added ?? 0}, already saved ${state.skipped ?? 0}, filed ${state.linked ?? 0}`,
   ];
   if (state.error) lines.push(`stopped: ${state.error}`);
+  lines.push(`renamed ${state.renamed ?? 0}, removed ${state.removed ?? 0}`);
   for (const problem of state.problems ?? []) lines.push(`problem: ${problem}`);
   for (const { scanner, requests } of state.trace ?? []) {
     lines.push(`[${scanner}]`);
@@ -109,8 +110,12 @@ function renderImport(state) {
   } else {
     const problems = state.problems?.length ? ` ${state.problems.join(' ')}` : '';
     const filed = state.linked ? ` Filed ${state.linked} under their projects.` : '';
+    // Orbit shows what is there now, so a rename and a removal are results, not footnotes.
+    const renamed = state.renamed ? ` Renamed ${state.renamed}.` : '';
+    const removed = state.removed ? ` Removed ${state.removed} no longer on the service.` : '';
     progress.textContent =
-      `Imported ${state.added} chats and projects, ${state.skipped} already saved.${filed}${problems}`;
+      `Imported ${state.added} chats and projects, ${state.skipped} already saved.`
+      + `${filed}${renamed}${removed}${problems}`;
   }
   // Offered only when something went wrong, since that is when the detail is worth having.
   reportButton.hidden = !(state.error || state.problems?.length);
