@@ -138,6 +138,11 @@ pnpm dev            # browser-only preview at http://127.0.0.1:1420
 pnpm build && pnpm test && cargo test --manifest-path src-tauri/Cargo.toml
 ```
 
+Or open the repository in the devcontainer and skip installing any of it — **Reopen in Container**
+in VS Code, or a GitHub Codespace. It matches what CI builds on and brings its own desktop, since
+Orbit is a window rather than a web page: the app opens at <http://localhost:6080>. See
+[`.devcontainer/README.md`](.devcontainer/README.md).
+
 Built with React, TypeScript, Three.js, Tauri 2 (Rust) and SQLite. Saved work lives in your per-user app data folder (`md.tekt.orbit`).
 
 ## Releasing
