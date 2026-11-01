@@ -51,6 +51,10 @@ was ruled out, and why — lives in `.manage/` and `.knowledge/`, not here.
 - **Reproducible screenshots.** `docs/screenshots/capture/capture.py` runs the real build in
   Firefox on a virtual display with Tauri's bridge stubbed, drives it through Marionette, and
   assembles the README animation — from a synthetic workspace of the same shape as a real one.
+- **A devcontainer** (`.devcontainer/`). Tauri's Linux prerequisites, Node 22, Rust stable, the
+  GitHub CLI and Firefox, on the Ubuntu 24.04 that CI builds on — plus a real desktop over noVNC,
+  because Orbit is a window and `pnpm tauri dev` needs somewhere to open it. Xvfb, xdotool and xwd
+  come with it, so a layout change can be checked without a monitor.
 
 ### Changed
 
