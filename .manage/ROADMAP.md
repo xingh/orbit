@@ -13,12 +13,12 @@ Never archived. Sequence and dependencies; the detail is in the issue file each 
       saved — `2026.10.23.import-links-and-responsiveness.plan.md`
 - [x] Why 21 of 34 Claude projects imported — the rows carry `archived_at`; `.archive/issue.0013`
 - [x] The index mirrors the provider: a renamed project is renamed here, and one that is gone or
-      archived is removed — #8 and #9, under the `mirror-not-archive` decision
+      archived is removed — #8 and #9, under the `mirror-not-archive` decision. Confirmed on live
+      data: 498 titles refreshed, 2 projects removed
+- [x] The extension is Orbit Link, attached to every release as a zip — `.archive/issue.0028`
 
 ## In progress
 
-- [ ] `issue.0028.orbit-link-release.md` — the extension is Orbit Link, and every release
-      attaches it as a zip with Chrome/Edge install steps
 - [ ] `issue.0004.responsive-window.md` — shipped: 20% footprint, compact layout, dense list, lazy
       optional 3D robot. Left: the pill only on hover, double-click to the tray, tray double-click
       to open, and a panel that opens where there is room
@@ -39,30 +39,27 @@ issues mirror this list.
 3. **P0** `issue.0006.per-item-storage.md` — unblocks #7 and #14, and the 2 MB blob is nearly
    full. Migration proven on a synthetic workspace of the live one's size. No longer blocks #8 or
    #9: both landed without it
-4. **P1** `issue.0008.upstream-renames.md` — built: a title the provider changed replaces the
-   stored one. No longer waits on #6; nothing in Orbit can edit a title, so the flag it was held
-   for would always be unset. Left: confirming it on live data
-5. **P1** `issue.0009.upstream-deletes.md` — built for projects: a sweep carrying the whole list
-   removes what the provider no longer has, refused whole when it would take more than a third.
-   No longer waits on #6, and tombstones are ruled out — see `mirror-not-archive`. Left: chats,
-   which `offset` paging cannot sweep safely
-6. **P1** `issue.0007.workspace-api.md` — one interface, IPC and HTTP; the browser preview finally
+4. **P1** `issue.0009.upstream-deletes.md` — the chat half only. Projects are done; a chat list
+   walked by `offset` over a recency-ordered list cannot be swept without deleting conversations
+   that still exist, so this needs a cursor the provider guarantees, or two consecutive sweeps
+   that agree before either applies
+5. **P1** `issue.0007.workspace-api.md` — one interface, IPC and HTTP; the browser preview finally
    sees the real workspace
-7. **P1** `issue.0010.extension-search.md` — the first read route, on top of #7
-8. **P2** `issue.0017.robot-genome.md` — independent; built here, but the look needs the owner's
+6. **P1** `issue.0010.extension-search.md` — the first read route, on top of #7
+7. **P2** `issue.0017.robot-genome.md` — independent; built here, but the look needs the owner's
    eye before it lands
-9. **P1** `issue.draft.install-page.md` — Orbit serves the install instructions at `GET /`, for the
+8. **P1** `issue.draft.install-page.md` — Orbit serves the install instructions at `GET /`, for the
    browser reading them. Finishes what #28 starts: the zip exists, this is how anyone finds out
    what to do with it. Verifiable with curl, no owner needed
 
 ### Needs the owner
 
-10. Not an issue: run the #6 migration on the live workspace, then #8 and #9 against a real
-    re-import
-11. **P3** `issue.0011.prime-composer.md` — `?q=` and both composers can only be confirmed signed in
-12. **P3** `issue.0014.shared-workspaces.md` — needs the `shared-vs-overlay` decision and a chosen
+9. Not an issue: run the #6 migration on the live workspace. #8 and #9 have now been confirmed
+    against a real re-import, so only the migration still needs the owner's own data
+10. **P3** `issue.0011.prime-composer.md` — `?q=` and both composers can only be confirmed signed in
+11. **P3** `issue.0014.shared-workspaces.md` — needs the `shared-vs-overlay` decision and a chosen
     server; then `issue.0016.deployment-modes.md`, then `issue.0015.mobile-client.md`
-13. **P3** `issue.0005.code-tools-in-launcher.md` — held by decision; needs a machine with both
+12. **P3** `issue.0005.code-tools-in-launcher.md` — held by decision; needs a machine with both
     tools signed in
 
 ### Dependencies

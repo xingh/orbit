@@ -1,9 +1,9 @@
 ---
 issue: 28
 title: "Orbit Link: name the browser extension and attach it to every release"
-state: in-progress
+state: done
 opened: 2026-10-31
-closed:
+closed: 2026-11-01
 github: https://github.com/xingh/orbit/issues/28
 owner: file
 arkitype: [01, 04]

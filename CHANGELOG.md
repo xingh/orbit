@@ -10,6 +10,21 @@ was ruled out, and why — lives in `.manage/` and `.knowledge/`, not here.
 
 ### Added
 
+- **The index mirrors the provider, rather than remembering what used to be there**
+  ([#8](https://github.com/xingh/orbit/issues/8),
+  [#9](https://github.com/xingh/orbit/issues/9)). A title the provider has changed replaces the
+  stored one, and a project the provider no longer lists — deleted or archived — is removed. On a
+  real workspace the first run refreshed 498 titles, 28 of them projects, and removed 2 projects
+  whose links had been 404ing for months.
+- **A sweep that looks like a short read is refused whole.** Removing on absence is how an index
+  gets emptied by a 403 or a dropped page, so a sweep names one provider and one kind, must carry
+  at least one id, and is refused outright — with the reason surfaced in the popup — when it would
+  take more than a third of what Orbit can see. Only the project lists sweep: the chat lists are
+  walked by `offset` over a list ordered by recency, where a chat updated mid-walk shifts pages and
+  is never seen.
+- **The extension is Orbit Link** ([#28](https://github.com/xingh/orbit/issues/28)), and every
+  release attaches it as `Orbit-Link-<version>.zip` beside the installers, with per-browser
+  instructions for loading it.
 - **The panel opens where there is room** ([#4](https://github.com/xingh/orbit/issues/4)). Below
   the robot when it fits, above it near the bottom of the screen, and diagonally away from a corner,
   with the robot left exactly where it was put.
