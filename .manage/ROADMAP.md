@@ -32,9 +32,11 @@ issues mirror this list.
 
 ### Without the owner
 
-1. **P0** `issue.0004.responsive-window.md` — finish it; it is daily use, and the placement it
+1. **P0** `issue.0032.focus-the-filter.md` — the caret is in the filter box when Find or Projects
+   opens. One file, no dependencies, and it is paid back on every single open
+2. **P0** `issue.0004.responsive-window.md` — finish it; it is daily use, and the placement it
    settles is what #12 remembers
-2. **P0** `issue.0012.window-restore-position.md` — remember the robot's position, validated
+3. **P0** `issue.0012.window-restore-position.md` — remember the robot's position, validated
    against the monitor layout on every show
 3. **P0** `issue.0006.per-item-storage.md` — unblocks #7 and #14, and the 2 MB blob is nearly
    full. Migration proven on a synthetic workspace of the live one's size. No longer blocks #8 or
@@ -70,10 +72,17 @@ issue.0006.per-item-storage.md          rows + updated; the 2 MB blob is nearly 
 issue.0007.workspace-api.md             one API, consumed by the desktop itself
         |
         +-- issue.0010.extension-search.md        find and start from the popup
+        +-- issue.0034.virtual-projects-by-name.md  one row for a shared name (also needs #6)
+        |           |
+        |           +-- issue.0033.start-in-the-right-project.md   which provider does it open?
+        |
         +-- issue.0014.shared-workspaces.md       a chosen server, then membership
                     |
                     +-- issue.0015.mobile-client.md     read-only PWA, QR pairing
                     +-- issue.0016.deployment-modes.md  compose / PaaS / Postgres · backlog
+
+issue.0035.new-chat-from-a-project-row.md   stands alone; #33 is it after #31 and #34
+issue.0032.focus-the-filter.md              stands alone
 ```
 
 ## Backlog — potential providers
@@ -103,8 +112,17 @@ has observed yet.
 - [ ] `issue.draft.extension-surface-sidebar-newtab.md` — order chats/projects in tools you
       already use: popup Find (#10) → optional new-tab search + frequent chats → provider-only
       side panel later. Sticky notes on links = Linkwarden in Konotree, not Orbit.
-- [ ] `issue.draft.virtual-projects-by-name.md` — virtual shelves by shared name (`.inbox`,
-      `rd/…`) across Claude/ChatGPT/etc.; organizer skill aligns naming, Orbit unions the index.
+
+## Raised here, held for a decision
+
+- [ ] `issue.0036.local-area-scanning.md` — a Craigslist/Nextdoor scan list and crawler, already
+      built and running outside this repository. It shares Orbit's premise — the browser is where
+      someone's context is — but not its shape: it crawls public listing sites on a schedule and
+      stores what it finds, where Orbit reads the user's own chat lists on demand and stores
+      titles and links. Folding it in changes what Orbit is, so it is **not scheduled** until
+      `scanner-in-orbit-or-beside-it` is answered. The small version that would not change
+      anything: the scanner stays its own program and posts findings to the companion service as
+      ordinary entries.
 
 ## Not planned, deliberately
 
