@@ -1,7 +1,7 @@
 ---
 issue: 8
 title: A chat renamed at the provider should update in Orbit
-state: in-progress
+state: done
 opened: 2026-10-23
 closed:
 github: https://github.com/xingh/orbit/issues/8
@@ -47,7 +47,8 @@ This is the owner's decision of 2026-11-01, recorded as `mirror-not-archive` in
 
 - [x] A project renamed upstream shows its new title after an import.
 - [x] A re-import of an unchanged list reports 0 renamed, not N.
-- [ ] Verified against the owner's live data — blocked on a re-pair; the dry run says 28.
+- [x] Verified against the owner's live data, 2026-11-01: **498 titles refreshed** — 470 chats
+      and all 28 projects. `title` was the only field that changed on any entry.
 
 ## Note on chats
 

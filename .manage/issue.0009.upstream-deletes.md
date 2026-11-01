@@ -66,7 +66,10 @@ Four things stand between a short read and that:
 - [x] A short read is refused whole, and says so.
 - [ ] Chats. Needs a chat list that can be read completely — either a cursor the provider
       guarantees, or two consecutive sweeps that agree before either is applied.
-- [ ] Verified against the owner's live data — blocked on a re-pair; the dry run says 2.
+- [x] Verified against the owner's live data, 2026-11-01: `kb/tekt.skills` and
+      `observe.gather.report` removed, 1140 -> 1138 entries, 30 -> 28 Claude projects,
+      matching claude.ai exactly. All eight workspace integrity checks still pass, so the
+      two chats those projects held were unfiled rather than left dangling.
 
 ## Done when
 
