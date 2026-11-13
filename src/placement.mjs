@@ -10,14 +10,17 @@ export function anchorOf({ x, y, width, height, stage, shift = 0, above = false,
 }
 
 // `reach` is how far the robot may come to the window's edge as it slides sideways inside it.
-export function place({ anchor, width, height, minHeight = height, stage, expanded, area, reach = width / 2, pad = 0 }) {
+// `keep` is how much of the robot's stage has to stay inside the work area vertically. The sides let
+// the robot slide to the window's edge and hang past the screen's; the bottom had no equivalent, so
+// the whole stage had to fit and a robot dropped over the taskbar sprang back up to 200px later.
+export function place({ anchor, width, height, minHeight = height, stage, expanded, area, reach = width / 2, pad = 0, keep = stage }) {
   const { left, top, right, bottom } = area;
   const limit = Math.max(0, width / 2 - reach);
   if (!expanded) {
     // Closed, only the robot has to stay on screen. Where the pill would land behind the Dock or
     // taskbar it moves above the robot instead, and the window moves up so the robot does not.
     const x = Math.round(clamp(anchor.cx - width / 2, left - limit, right - width + limit));
-    const robot = clamp(anchor.top, top, bottom - stage), above = robot + height - 2 * pad > bottom;
+    const robot = clamp(anchor.top, top - (stage - keep), bottom - keep), above = robot + height - 2 * pad > bottom;
     const y = Math.round(above ? robot + stage + pad - height : robot - pad);
     return { x, y, above, shift: Math.round(anchor.cx - (x + width / 2)), height };
   }

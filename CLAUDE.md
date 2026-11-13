@@ -35,12 +35,18 @@ cargo fmt --manifest-path src-tauri/Cargo.toml -- --check
 ./manage status
 ```
 
-## Two traps that have already bitten
+## Three traps that have already bitten
 
 - `"resizable": false` in `tauri.conf.json` makes every programmatic `setSize` a silent no-op.
   It must stay `true`.
 - The window and the companion service write the same storage. A writer must keep what it has not
   seen; a blind full-workspace write loses imported entries with no error anywhere.
+- `outerSize()` and `outerPosition()` do not agree with the screen on GTK. The invisible resize
+  border around a `decorations: false` window is counted by `outerSize` and not by `setSize`, so a
+  window given the size it already has reports back a different one. Never loop until the window
+  reports the geometry you asked for, and never ask for less than `minWidth`/`minHeight` — the
+  request is refused, the comparison never comes out equal, and the window walks across the screen.
+  `.archive/issue.draft.the-robot-walks-up-the-screen.md`.
 
 ## House style
 
