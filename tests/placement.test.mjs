@@ -96,3 +96,31 @@ test('the window padding is counted, so flipping the pill does not move the robo
   assert.equal(p.above, true);
   assert.equal(anchorOf({ ...p, width: 480, stage: 185, pad: 8 }).top, Math.min(anchor.top, 1160 - 185));
 });
+
+// The robot is dropped where the user let go of it. These cover the vertical rule only; the sides
+// have always let it hang past the screen edge, and `closed near the Dock` above covers the flip.
+const screen = { left: 0, top: 0, right: 2560, bottom: 1360 };
+const robot = { width: 510, height: 270, stage: 185, expanded: false, reach: 69, pad: 8, keep: 56 };
+const topOf = (p) => anchorOf({ ...p, width: robot.width, stage: robot.stage, pad: robot.pad }).top;
+
+test('a robot dropped over the taskbar stays over the taskbar', () => {
+  // 1250 puts the robot's feet 75px below the work area. The old rule capped it at 1175 and sprang
+  // it back; nothing about the drop is ambiguous, so it should stay.
+  const p = place({ ...robot, anchor: at(2255, 1250), area: screen });
+  assert.equal(topOf(p), 1250);
+});
+
+test('a robot dropped past the bottom keeps a grabbable slice on screen', () => {
+  const p = place({ ...robot, anchor: at(2255, 1400), area: screen });
+  assert.equal(topOf(p), 1360 - 56, 'the top 56px of the stage stay inside the work area');
+});
+
+test('a robot dropped above the top edge keeps the same slice', () => {
+  const p = place({ ...robot, anchor: at(2255, -300), area: screen });
+  assert.equal(topOf(p), -(185 - 56), 'the bottom 56px of the stage stay inside the work area');
+});
+
+test('the whole stage still has to fit when no slice is named', () => {
+  const p = place({ ...robot, keep: undefined, anchor: at(2255, 1250), area: screen });
+  assert.equal(topOf(p), 1360 - 185);
+});

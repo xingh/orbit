@@ -27,6 +27,9 @@ const ROBOT_REACH = 0.3;
 // The native window's vertical padding (.native in styles.css), between its edge and the robot's stage.
 const WINDOW_PAD = 8;
 const MIN = { width: 330, height: 430 };
+/** The window's own floor, paired with minWidth/minHeight in tauri.conf.json. A smaller size is
+ *  refused, so `outerSize` never reports it back and a pass that waits for it never settles. */
+const WINDOW_MIN = { width: 300, height: 180 };
 /** Below this width the panel switches to its tighter layout. */
 const COMPACT_WIDTH = 430;
 /** Robot stage heights, paired with .robot-stage in styles.css. `flat` is the mark on its own. */
@@ -55,7 +58,7 @@ export default function App() {
   const [settle,setSettle]=useState(0);
   const expandedRef=useRef(expanded);expandedRef.current=expanded;
   const [placement,setPlacement]=useState({above:false,shift:0,pill:0});
-  const placed=useRef({above:false,shift:0}),clickTimer=useRef<number|undefined>(undefined),home=useRef<{x:number;y:number;shift:number;above:boolean;opened:{x:number;y:number}}|null>(null),lastSet=useRef<{x:number;y:number}|null>(null);
+  const placed=useRef({above:false,shift:0}),clickTimer=useRef<number|undefined>(undefined),home=useRef<{x:number;y:number;shift:number;above:boolean;opened:{x:number;y:number}}|null>(null),lastSet=useRef<{x:number;y:number}|null>(null),lastSize=useRef<{w:number;h:number}|null>(null);
   const [modal,setModal]=useState<'chat'|'project'|null>(null);
   const [draft,setDraft]=useState(blank);
   const [error,setError]=useState('');
@@ -138,7 +141,7 @@ export default function App() {
         // robot off the stage is a flat mark, and the window gives that height back.
         const stage=tight?STAGE.tight:STAGE.normal;
         const relief=data.settings.robot?0:stage-STAGE.flat;
-        const height=(expanded?open:(tight?205:DESIGN.collapsed))-relief;
+        const height=Math.max(WINDOW_MIN.height,(expanded?open:(tight?205:DESIGN.collapsed))-relief);
         const before=(await w.outerSize()).toLogical(s),p=(await w.outerPosition()).toLogical(s);
         if(!m||!area){await w.setSize(new LogicalSize(width,height));return;}
         const a=m.workArea,left=a.position.x/s,top=a.position.y/s;
@@ -149,17 +152,27 @@ export default function App() {
         const anchor=anchorOf({x:p.x,y:p.y,width:before.width,height:before.height,stage:stageHeight,pad:WINDOW_PAD,...placed.current});
         // Closing returns to exactly where the robot was put, unless the window was dragged while open.
         const back=!expanded&&home.current&&Math.abs(p.x-home.current.opened.x)<2&&Math.abs(p.y-home.current.opened.y)<2?home.current:null;
-        const next=back?{x:back.x,y:back.y,above:back.above,shift:back.shift,height}:place({anchor,pad:WINDOW_PAD,width,height,minHeight:Math.min(height,MIN.height-relief),stage:stageHeight,expanded,area:{left,top,right:left+area.width,bottom:top+area.height},reach});
+        const next=back?{x:back.x,y:back.y,above:back.above,shift:back.shift,height}:place({anchor,pad:WINDOW_PAD,width,height,minHeight:Math.min(height,MIN.height-relief),stage:stageHeight,expanded,area:{left,top,right:left+area.width,bottom:top+area.height},reach,keep:Math.round(stageHeight*ROBOT_REACH)});
+        // What the window already is, judged by what it was last asked for rather than by what it
+        // reports: GTK counts the invisible resize border in `outerSize` and not in `setSize`, so a
+        // window given the size it already has reports a different one, is resized again, and is
+        // nudged by the difference — which fires onMoved, which schedules the next pass, for ever.
+        // A pass with nothing to change must therefore touch neither the size nor the position.
+        const sized=!!lastSize.current&&lastSize.current.w===width&&lastSize.current.h===next.height;
+        const positioned=Math.abs(p.x-next.x)<2&&Math.abs(p.y-next.y)<2;
+        const settled=sized&&positioned&&next.above===placed.current.above&&next.shift===placed.current.shift;
         if(!expanded)home.current=null;
         else if(home.current)home.current.opened={x:next.x,y:next.y};
         else home.current={x:p.x,y:p.y,shift:placed.current.shift,above:placed.current.above,opened:{x:next.x,y:next.y}};
         const limit=Math.max(0,width/2-(tight?PILL_HALF.tight:PILL_HALF.normal));
         placed.current={above:next.above,shift:next.shift};
         setPlacement({...placed.current,pill:Math.max(-limit,Math.min(next.shift,limit))});
+        lastSet.current={x:next.x,y:next.y};lastSize.current={w:width,h:next.height};
+        if(settled)return;
+        if(sized){if(!positioned)await w.setPosition(new LogicalPosition(next.x,next.y));}
         // The window manager keeps a window inside the screen by the size it last saw, so a window that
         // is still tall when moved low gets pushed back up: shrink, wait for the size to land, then move.
-        lastSet.current={x:next.x,y:next.y};
-        if(next.height<before.height){
+        else if(next.height<before.height){
           await w.setSize(new LogicalSize(width,next.height));
           for(let i=0;i<15&&Math.abs((await w.outerSize()).toLogical(s).height-next.height)>1;i++)await new Promise(r=>setTimeout(r,16));
           await w.setPosition(new LogicalPosition(next.x,next.y));

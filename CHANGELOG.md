@@ -69,6 +69,17 @@ was ruled out, and why — lives in `.manage/` and `.knowledge/`, not here.
 
 ### Fixed
 
+- **The robot walked up the screen after it was moved.** One move and it climbed 64px about twice
+  a second until it reached the top. The collapsed window worked out shorter than the `minHeight`
+  in `tauri.conf.json`, so the size it asked for could never be granted; GTK's invisible resize
+  border is counted by `outerSize()` but not by `setSize()`, so the window reported a height it did
+  not have; and the placement pass compared the two, never came out equal, resized again, and was
+  nudged — which fired `onMoved` and started the next pass. The pass now settles on the size it
+  asked for rather than the one the window reports, never asks for less than the window allows, and
+  touches nothing when nothing has changed.
+- **The robot can be parked against the bottom edge.** The sides always let it slide to the
+  window's edge and hang past the screen's; the bottom demanded that its whole stage fit inside the
+  work area, so a robot dropped over the taskbar sprang back by as much as 200px.
 - **Claude accounts with more than one organization.** Only some organizations serve a chat list
   and the rest answer 403, so using the first one reported "signed-out" and imported nothing.
   Every organization is tried, chat-capable first, and whatever answers is kept.

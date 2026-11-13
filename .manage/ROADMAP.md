@@ -16,6 +16,8 @@ Never archived. Sequence and dependencies; the detail is in the issue file each 
       archived is removed — #8 and #9, under the `mirror-not-archive` decision. Confirmed on live
       data: 498 titles refreshed, 2 projects removed
 - [x] The extension is Orbit Link, attached to every release as a zip — `.archive/issue.0028`
+- [x] The robot stays where it is put. It used to walk up the screen, 64px at a time, after any
+      move — `.archive/issue.draft.the-robot-walks-up-the-screen.md`
 
 ## In progress
 
